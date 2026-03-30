@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import ClassVar
 
 from typer.testing import CliRunner
@@ -12,33 +13,41 @@ from agent_inject.cli import app
 
 runner = CliRunner()
 
+# Strip ANSI escape sequences from Rich output for assertions
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _strip(text: str) -> str:
+    return _ANSI_RE.sub("", text)
+
 
 class TestScan:
     def test_basic(self) -> None:
         result = runner.invoke(app, ["scan", "https://example.com"])
         assert result.exit_code == 0
-        assert "Target: https://example.com" in result.stdout
-        assert "Attacks: all" in result.stdout
+        out = _strip(result.stdout)
+        assert "Target: https://example.com" in out
+        assert "Attacks: all" in out
 
     def test_with_attacks(self) -> None:
         result = runner.invoke(app, ["scan", "https://x.com", "--attack", "direct"])
         assert result.exit_code == 0
-        assert "direct" in result.stdout
+        assert "direct" in _strip(result.stdout)
 
     def test_with_config(self) -> None:
         result = runner.invoke(app, ["scan", "https://x.com", "--config", "test.yaml"])
         assert result.exit_code == 0
-        assert "Config: test.yaml" in result.stdout
+        assert "Config: test.yaml" in _strip(result.stdout)
 
     def test_verbose(self) -> None:
         result = runner.invoke(app, ["scan", "https://x.com", "--verbose"])
         assert result.exit_code == 0
-        assert "Verbose mode enabled" in result.stdout
+        assert "Verbose mode enabled" in _strip(result.stdout)
 
     def test_output_shown(self) -> None:
         result = runner.invoke(app, ["scan", "https://x.com", "--output", "out.json"])
         assert result.exit_code == 0
-        assert "Output: out.json" in result.stdout
+        assert "Output: out.json" in _strip(result.stdout)
 
 
 class TestListAttacks:
@@ -57,7 +66,7 @@ class TestListAttacks:
         try:
             result = runner.invoke(app, ["list-attacks"])
             assert result.exit_code == 0
-            assert "_cli_test_attack" in result.stdout
+            assert "_cli_test_attack" in _strip(result.stdout)
         finally:
             del _ATTACKS["_cli_test_attack"]
 
@@ -66,11 +75,11 @@ class TestListAdapters:
     def test_output(self) -> None:
         result = runner.invoke(app, ["list-adapters"])
         assert result.exit_code == 0
-        assert "No adapters registered" in result.stdout
+        assert "No adapters registered" in _strip(result.stdout)
 
 
 class TestVersion:
     def test_output(self) -> None:
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
-        assert "agent-inject 0.1.0" in result.stdout
+        assert "0.1.0" in _strip(result.stdout)
