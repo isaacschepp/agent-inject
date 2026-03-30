@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request: {}
 
+permissions: {}
+
 env:
   UV_FROZEN: true
   FORCE_COLOR: 1
