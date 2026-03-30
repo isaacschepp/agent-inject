@@ -156,9 +156,10 @@ filterwarnings = ["error"]
 source = ["agent_inject"]
 branch = true
 relative_files = true
+omit = ["src/agent_inject/__main__.py"]
 
 [tool.coverage.report]
-fail_under = 50
+fail_under = 98
 precision = 2
 show_missing = true
 exclude_also = [
@@ -166,4 +167,7 @@ exclude_also = [
     "@(abc\\.)?abstractmethod",
     "raise NotImplementedError",
     "@overload",
+    "if __name__ == .__main__.",
+    "\\.\\.\\.",
+    "except ImportError:",
 ]

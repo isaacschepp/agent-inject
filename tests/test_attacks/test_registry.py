@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from typing import ClassVar
 
+import pytest
+
 from agent_inject.attacks.base import FixedJailbreakAttack
-from agent_inject.attacks.registry import _ATTACKS, get_all_attacks, register_attack
+from agent_inject.attacks.registry import _ATTACKS, get_all_attacks, get_attack, register_attack
 from agent_inject.models import DeliveryVector
 
 
@@ -55,6 +57,24 @@ class TestRegisterAttack:
         payloads = attack.generate_payloads("exfiltrate", delivery_vector=DeliveryVector.TOOL_RETURN)
 
         assert payloads[0].delivery_vector == DeliveryVector.TOOL_RETURN
+
+
+class TestGetAttack:
+    def test_known(self) -> None:
+        @register_attack
+        class _LookupAttack(FixedJailbreakAttack):
+            name = "_lookup_test"
+            _templates: ClassVar[list[str]] = ["test: {goal}"]
+
+        try:
+            cls = get_attack("_lookup_test")
+            assert cls is _LookupAttack
+        finally:
+            del _ATTACKS["_lookup_test"]
+
+    def test_unknown_raises(self) -> None:
+        with pytest.raises(KeyError, match="Unknown attack"):
+            get_attack("nonexistent_attack_xyz")
 
 
 class TestGetAllAttacks:

@@ -97,3 +97,22 @@ class TestCompose:
         chain = compose()
         assert chain.apply("test") == "test"
         assert chain.instructions() == []
+
+
+class TestInstructionReturns:
+    """Cover the instruction() -> None returns on transforms without decoder hints."""
+
+    def test_leetspeak_no_instruction(self) -> None:
+        assert Leetspeak().instruction() is None
+
+    def test_char_spacing_no_instruction(self) -> None:
+        assert CharSpacing().instruction() is None
+
+    def test_homoglyph_no_instruction(self) -> None:
+        assert Homoglyph().instruction() is None
+
+    def test_fullwidth_no_instruction(self) -> None:
+        assert FullwidthChars().instruction() is None
+
+    def test_zero_width_no_instruction(self) -> None:
+        assert ZeroWidthInsert().instruction() is None
