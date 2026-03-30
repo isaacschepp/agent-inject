@@ -1,0 +1,168 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agent-inject"
+version = "0.1.0"
+description = "Offensive testing framework for AI agent systems"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+authors = [
+    { name = "Isaac Schepp" },
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: Console",
+    "Framework :: AsyncIO",
+    "Framework :: Pydantic",
+    "Framework :: Pydantic :: 2",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Security",
+    "Topic :: Software Development :: Testing",
+    "Typing :: Typed",
+]
+dependencies = [
+    "typer>=0.24",
+    "rich>=13.0",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.0",
+    "httpx>=0.27",
+    "pyyaml>=6.0",
+    "rapidfuzz>=3.0",
+]
+keywords = [
+    "security",
+    "ai",
+    "llm",
+    "prompt-injection",
+    "red-team",
+    "offensive-security",
+    "agent",
+    "mcp",
+]
+
+[project.optional-dependencies]
+openai = ["openai>=2.0,<3.0"]
+anthropic = ["anthropic>=0.47"]
+langchain = ["langchain>=1.2"]
+all-providers = [
+    "agent-inject[openai]",
+    "agent-inject[anthropic]",
+    "agent-inject[langchain]",
+]
+
+[project.urls]
+Homepage = "https://github.com/isaacschepp/agent-inject"
+Repository = "https://github.com/isaacschepp/agent-inject"
+Issues = "https://github.com/isaacschepp/agent-inject/issues"
+
+[project.scripts]
+agent-inject = "agent_inject.cli:app"
+
+[dependency-groups]
+dev = [
+    { include-group = "tests" },
+    { include-group = "linting" },
+    { include-group = "typechecking" },
+]
+tests = [
+    "pytest>=9.0",
+    "pytest-asyncio>=1.3",
+    "pytest-cov>=5.0",
+    "pytest-mock>=3.14",
+    "coverage[toml]>=7",
+    "hypothesis>=6.0",
+    "respx>=0.21",
+]
+linting = [
+    "ruff>=0.15",
+    "pre-commit>=4.0",
+]
+typechecking = [
+    "pyright>=1.1",
+]
+docs = [
+    "mkdocs-material>=9.7",
+    "mkdocstrings[python]>=0.30",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_inject"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "F",
+    "E",
+    "W",
+    "I",
+    "B",
+    "C4",
+    "UP",
+    "SIM",
+    "PIE",
+    "PGH",
+    "RUF",
+    "PERF",
+    "T20",
+    "ASYNC",
+    "S",
+    "N",
+]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S"]
+"src/agent_inject/evasion/**" = ["RUF001"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["agent_inject"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.pyright]
+include = ["src"]
+pythonVersion = "3.12"
+strict = ["src/agent_inject"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+xfail_strict = true
+addopts = [
+    "--strict-config",
+    "--strict-markers",
+    "-rxXs",
+]
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["agent_inject"]
+branch = true
+relative_files = true
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "@(abc\\.)?abstractmethod",
+    "raise NotImplementedError",
+    "@overload",
+]

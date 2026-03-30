@@ -1,0 +1,1 @@
+"""Target adapter implementations."""
