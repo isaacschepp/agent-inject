@@ -6,9 +6,11 @@ import importlib
 import inspect
 import logging
 import pkgutil
+import threading
 from typing import TYPE_CHECKING
 
 _logger = logging.getLogger(__name__)
+_lock = threading.Lock()
 
 if TYPE_CHECKING:
     from agent_inject.attacks.base import BaseAttack
@@ -43,9 +45,12 @@ def _ensure_discovered() -> None:
     global _discovered
     if _discovered:
         return
-    _discover_builtin_attacks()
-    _load_yaml_payloads()
-    _discovered = True
+    with _lock:
+        if _discovered:  # pragma: no cover
+            return
+        _discover_builtin_attacks()
+        _load_yaml_payloads()
+        _discovered = True
 
 
 def _discover_builtin_attacks() -> None:
