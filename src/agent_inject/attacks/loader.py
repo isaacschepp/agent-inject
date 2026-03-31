@@ -58,6 +58,8 @@ def _build_attack_class(entry: YamlAttackEntry) -> type[FixedJailbreakAttack]:
             "_templates": entry.templates,
             "_tier": entry.tier,
             "_target_outcomes": tuple(entry.target_outcomes),
+            "_source": entry.source,
+            "_year": entry.year,
         },
     )
 

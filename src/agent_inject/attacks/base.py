@@ -40,6 +40,8 @@ class FixedJailbreakAttack(BaseAttack):
     _templates: ClassVar[list[str]] = []
     _tier: ClassVar[PayloadTier] = PayloadTier.CLASSIC
     _target_outcomes: ClassVar[tuple[TargetOutcome, ...]] = (TargetOutcome.GOAL_HIJACKING,)
+    _source: ClassVar[str] = ""
+    _year: ClassVar[int] = 2026
 
     def generate_payloads(
         self,
@@ -78,8 +80,8 @@ class FixedJailbreakAttack(BaseAttack):
                 tier=self._tier,
                 delivery_vectors=(delivery_vector,),
                 target_outcomes=self._target_outcomes,
-                source=self.__class__.__module__,
-                year=2026,
+                source=self._source or self.__class__.__module__,
+                year=self._year,
             )
             instances.append(
                 PayloadInstance(

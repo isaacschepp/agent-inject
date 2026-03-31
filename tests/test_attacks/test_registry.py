@@ -94,6 +94,28 @@ class TestRegisterAttack:
         assert payloads[0].payload.tier == PayloadTier.CLASSIC
         assert payloads[0].payload.target_outcomes == (TargetOutcome.GOAL_HIJACKING,)
 
+    def test_custom_source_and_year(self) -> None:
+        class OldAttack(FixedJailbreakAttack):
+            name = "old_test"
+            _templates: ClassVar[list[str]] = ["test: {goal}"]
+            _source: ClassVar[str] = "PromptInject/Perez2022"
+            _year: ClassVar[int] = 2022
+
+        attack = OldAttack()
+        payloads = attack.generate_payloads("test")
+        assert payloads[0].payload.source == "PromptInject/Perez2022"
+        assert payloads[0].payload.year == 2022
+
+    def test_default_source_falls_back_to_module(self) -> None:
+        class DefaultAttack(FixedJailbreakAttack):
+            name = "default_src_test"
+            _templates: ClassVar[list[str]] = ["test: {goal}"]
+
+        attack = DefaultAttack()
+        payloads = attack.generate_payloads("test")
+        assert payloads[0].payload.source != ""
+        assert payloads[0].payload.year == 2026
+
     def test_kwargs_forwarded(self) -> None:
         class CustomAttack(FixedJailbreakAttack):
             name = "custom_test"
