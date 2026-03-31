@@ -9,7 +9,7 @@ from importlib.resources.abc import Traversable
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ValidationError, field_validator
 
 from agent_inject.attacks.base import FixedJailbreakAttack
 from agent_inject.models import PayloadTier, TargetOutcome
@@ -90,7 +90,7 @@ def load_yaml_payloads(existing: Mapping[str, Any]) -> dict[str, type[FixedJailb
 
         try:
             validated = YamlPayloadFile.model_validate(raw)
-        except Exception:
+        except ValidationError:
             _logger.warning("Invalid payload schema in %s", resource.name, exc_info=True)
             continue
 
