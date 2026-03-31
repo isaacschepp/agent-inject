@@ -9,6 +9,10 @@ permissions:
   contents: read
   attestations: write
 
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
