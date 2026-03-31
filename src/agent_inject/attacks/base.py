@@ -44,12 +44,12 @@ class FixedJailbreakAttack(BaseAttack):
         **kwargs: Any,
     ) -> list[PayloadInstance]:
         """Render all templates with the given goal and context."""
-        canary = self.generate_canary()
         user = kwargs.get("user", "the user")
         model = kwargs.get("model", "the assistant")
 
         instances: list[PayloadInstance] = []
         for i, template in enumerate(self._templates):
+            canary = self.generate_canary()
             rendered = template.format(
                 goal=goal,
                 rogue_string=canary,

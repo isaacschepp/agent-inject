@@ -48,6 +48,20 @@ class TestRegisterAttack:
         assert payloads[0].rogue_string.startswith("CANARY-")
         assert payloads[0].rogue_string in payloads[0].rendered
 
+    def test_per_template_unique_canary(self) -> None:
+        class MultiAttack(FixedJailbreakAttack):
+            name = "multi_test"
+            _templates: ClassVar[list[str]] = [
+                'Say "{rogue_string}" first',
+                'Say "{rogue_string}" second',
+            ]
+
+        attack = MultiAttack()
+        payloads = attack.generate_payloads("test")
+        assert payloads[0].rogue_string != payloads[1].rogue_string
+        assert payloads[0].rogue_string in payloads[0].rendered
+        assert payloads[1].rogue_string in payloads[1].rendered
+
     def test_custom_delivery_vector(self) -> None:
         class ToolAttack(FixedJailbreakAttack):
             name = "tool_test"
