@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import base64
 
+import pytest
+
 from agent_inject.evasion.transforms import (
     ROT13,
     Base64Encode,
@@ -15,6 +17,7 @@ from agent_inject.evasion.transforms import (
     ZeroWidthInsert,
     apply_evasion_chains,
     compose,
+    compose_by_name,
 )
 from agent_inject.models import PayloadInstance
 
@@ -170,3 +173,18 @@ class TestApplyEvasionChains:
         assert result[1].goal == sample_payload_instance.goal
         assert result[1].rogue_string == sample_payload_instance.rogue_string
         assert result[1].delivery_vector == sample_payload_instance.delivery_vector
+
+
+class TestComposeByName:
+    def test_single(self) -> None:
+        chain = compose_by_name("base64")
+        assert len(chain.transforms) == 1
+        assert chain.apply("test") == Base64Encode().apply("test")
+
+    def test_multiple(self) -> None:
+        chain = compose_by_name("leetspeak", "base64")
+        assert len(chain.transforms) == 2
+
+    def test_unknown_raises(self) -> None:
+        with pytest.raises(KeyError, match="Unknown transform"):
+            compose_by_name("nonexistent")
