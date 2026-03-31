@@ -52,8 +52,11 @@ class RestAdapter(BaseAdapter):
                 headers=self.headers,
             )
             resp.raise_for_status()
-            data = resp.json()
-            raw_output = str(data.get(self.response_field, data))
+            try:
+                data = resp.json()
+                raw_output = str(data.get(self.response_field, data))
+            except (ValueError, KeyError):
+                raw_output = resp.text
         except httpx.HTTPError as e:
             return AttackResult(payload_instance=payload, error=str(e))
 

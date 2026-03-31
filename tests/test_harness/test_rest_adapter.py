@@ -51,6 +51,16 @@ class TestSendPayload:
         request_body = route.calls.last.request.content.decode()
         assert "prompt" in request_body
 
+    @respx.mock
+    async def test_non_json_response(self, sample_payload_instance: PayloadInstance) -> None:
+        respx.post("https://agent.test/").mock(
+            return_value=httpx.Response(200, text="<html>Not JSON</html>", headers={"content-type": "text/html"})
+        )
+        adapter = RestAdapter("https://agent.test/")
+        result = await adapter.send_payload(sample_payload_instance)
+        assert result.error is None
+        assert "<html>" in result.raw_output
+
 
 class TestHealthCheck:
     @respx.mock
