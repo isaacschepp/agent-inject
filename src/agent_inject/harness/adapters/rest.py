@@ -66,6 +66,7 @@ class RestAdapter(BaseAdapter):
         """Check if the target responds."""
         try:
             resp = await self._client.get(self.base_url, headers=self.headers)
-            return resp.status_code < 500
         except httpx.HTTPError:
             return False
+        else:
+            return resp.status_code < 500

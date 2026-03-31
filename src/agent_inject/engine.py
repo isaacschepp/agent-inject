@@ -5,15 +5,18 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from agent_inject.attacks.base import BaseAttack
 from agent_inject.evasion.transforms import TransformChain, apply_evasion_chains
-from agent_inject.harness.base import BaseAdapter
 from agent_inject.models import AttackResult, DeliveryVector, PayloadInstance, Score
-from agent_inject.scorers.base import BaseScorer
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from agent_inject.attacks.base import BaseAttack
+    from agent_inject.harness.base import BaseAdapter
+    from agent_inject.scorers.base import BaseScorer
 
 _logger = logging.getLogger(__name__)
 
@@ -54,6 +57,7 @@ async def run_scan(
 
     Returns:
         ScanResult with all results and scores.
+
     """
     start = time.monotonic()
 
@@ -126,7 +130,7 @@ async def _send_all(
         async with sem:
             try:
                 return await adapter.send_payload(instance)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — adapter-agnostic; can't predict exception types
                 _logger.warning("Send failed for %s: %s", instance.payload.id, e)
                 return AttackResult(payload_instance=instance, error=str(e))
 

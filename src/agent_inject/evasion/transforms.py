@@ -21,7 +21,7 @@ class EvasionTransform(ABC):
         """Transform the payload text."""
 
     def instruction(self) -> str | None:
-        """Optional decoder instruction the model needs to follow."""
+        """Return an optional decoder instruction the model needs to follow."""
         return None
 
 
