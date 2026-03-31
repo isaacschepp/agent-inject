@@ -92,3 +92,11 @@ def _load_yaml_payloads() -> None:
 
     loaded = load_yaml_payloads(existing=_ATTACKS)
     _ATTACKS.update(loaded)
+
+
+def _reset_registry() -> None:
+    """Reset to pre-discovery state. For testing only."""
+    global _discovered
+    with _lock:
+        _ATTACKS.clear()
+        _discovered = False
