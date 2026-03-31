@@ -44,6 +44,7 @@ def _ensure_discovered() -> None:
     if _discovered:
         return
     _discover_builtin_attacks()
+    _load_yaml_payloads()
     _discovered = True
 
 
@@ -74,3 +75,11 @@ def _discover_builtin_attacks() -> None:
                 and obj.name not in _ATTACKS
             ):
                 _ATTACKS[obj.name] = obj
+
+
+def _load_yaml_payloads() -> None:
+    """Load YAML payload files and register as attack classes."""
+    from agent_inject.attacks.loader import load_yaml_payloads
+
+    loaded = load_yaml_payloads(existing=_ATTACKS)
+    _ATTACKS.update(loaded)
