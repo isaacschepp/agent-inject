@@ -7,7 +7,7 @@ from typing import ClassVar
 import pytest
 
 from agent_inject.attacks.base import FixedJailbreakAttack
-from agent_inject.attacks.registry import _ATTACKS, get_all_attacks, get_attack, register_attack
+from agent_inject.attacks.registry import _ATTACKS, _reset_registry, get_all_attacks, get_attack, register_attack
 from agent_inject.models import DeliveryVector, PayloadTier, TargetOutcome
 
 
@@ -193,3 +193,17 @@ class TestGetAllAttacks:
     def test_returns_dict(self) -> None:
         result = get_all_attacks()
         assert isinstance(result, dict)
+
+
+class TestResetRegistry:
+    def test_clears_attacks_and_discovered(self) -> None:
+        # Register a test attack
+        @register_attack
+        class _ResetTestAttack(FixedJailbreakAttack):
+            name = "_reset_test"
+            _templates: ClassVar[list[str]] = ["test: {goal}"]
+
+        assert "_reset_test" in _ATTACKS
+        _reset_registry()
+        assert "_reset_test" not in _ATTACKS
+        assert get_all_attacks() is not None  # re-discovery works after reset

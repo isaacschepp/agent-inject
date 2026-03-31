@@ -94,7 +94,7 @@ def _load_yaml_payloads() -> None:
     _ATTACKS.update(loaded)
 
 
-def _reset_registry() -> None:
+def _reset_registry() -> None:  # pyright: ignore[reportUnusedFunction]
     """Reset to pre-discovery state. For testing only."""
     global _discovered
     with _lock:
