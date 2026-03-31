@@ -116,6 +116,28 @@ class TestRegisterAttack:
         assert payloads[0].payload.source != ""
         assert payloads[0].payload.year == 2026
 
+    def test_mitre_owasp_passthrough(self) -> None:
+        class MappedAttack(FixedJailbreakAttack):
+            name = "mapped_test"
+            _templates: ClassVar[list[str]] = ["test: {goal}"]
+            _mitre_atlas_ids: ClassVar[tuple[str, ...]] = ("AML.T0051",)
+            _owasp_llm_ids: ClassVar[tuple[str, ...]] = ("LLM01:2025",)
+
+        attack = MappedAttack()
+        payloads = attack.generate_payloads("test")
+        assert payloads[0].payload.mitre_atlas_ids == ("AML.T0051",)
+        assert payloads[0].payload.owasp_llm_ids == ("LLM01:2025",)
+
+    def test_mitre_owasp_defaults_empty(self) -> None:
+        class PlainAttack(FixedJailbreakAttack):
+            name = "plain_test"
+            _templates: ClassVar[list[str]] = ["test: {goal}"]
+
+        attack = PlainAttack()
+        payloads = attack.generate_payloads("test")
+        assert payloads[0].payload.mitre_atlas_ids == ()
+        assert payloads[0].payload.owasp_llm_ids == ()
+
     def test_kwargs_forwarded(self) -> None:
         class CustomAttack(FixedJailbreakAttack):
             name = "custom_test"

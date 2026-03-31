@@ -60,6 +60,8 @@ def _build_attack_class(entry: YamlAttackEntry) -> type[FixedJailbreakAttack]:
             "_target_outcomes": tuple(entry.target_outcomes),
             "_source": entry.source,
             "_year": entry.year,
+            "_mitre_atlas_ids": tuple(entry.mitre_atlas_ids),
+            "_owasp_llm_ids": tuple(entry.owasp_llm_ids),
         },
     )
 
