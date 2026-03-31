@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, override
 
 from agent_inject.harness.base import BaseAdapter
 from agent_inject.models import AttackResult, PayloadInstance
@@ -13,6 +13,7 @@ class StubAdapter(BaseAdapter):
 
     name = "stub"
 
+    @override
     async def send_payload(
         self,
         payload: PayloadInstance,

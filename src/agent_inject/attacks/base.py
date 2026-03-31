@@ -6,7 +6,7 @@ import logging
 import uuid
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
-from typing import Any, ClassVar
+from typing import Any, ClassVar, override
 
 from agent_inject.models import DeliveryVector, Payload, PayloadInstance, PayloadTier, TargetOutcome
 
@@ -45,6 +45,7 @@ class FixedJailbreakAttack(BaseAttack):
     _mitre_atlas_ids: ClassVar[tuple[str, ...]] = ()
     _owasp_llm_ids: ClassVar[tuple[str, ...]] = ()
 
+    @override
     def generate_payloads(
         self,
         goal: str,

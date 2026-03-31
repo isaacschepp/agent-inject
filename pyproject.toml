@@ -166,6 +166,8 @@ docstring-code-format = true
 include = ["src"]
 pythonVersion = "3.12"
 strict = ["src/agent_inject"]
+reportImplicitOverride = true
+reportUnnecessaryTypeIgnoreComment = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

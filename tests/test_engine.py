@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, ClassVar
+from typing import Any, ClassVar, override
 
 from agent_inject.attacks.base import FixedJailbreakAttack
 from agent_inject.engine import ScanResult, run_scan
@@ -20,6 +20,7 @@ class StubAdapter(BaseAdapter):
     def __init__(self, response: str = "ok") -> None:
         self._response = response
 
+    @override
     async def send_payload(
         self,
         payload: PayloadInstance,
@@ -33,6 +34,7 @@ class AlwaysPassScorer(BaseScorer):
 
     name = "always_pass"
 
+    @override
     async def score(self, result: AttackResult) -> Score:
         return Score(scorer_name=self.name, passed=True, value=1.0)
 
@@ -42,6 +44,7 @@ class NeverPassScorer(BaseScorer):
 
     name = "never_pass"
 
+    @override
     async def score(self, result: AttackResult) -> Score:
         return Score(scorer_name=self.name, passed=False, value=0.0)
 
@@ -145,6 +148,7 @@ class TestRunScan:
         class FailingAdapter(BaseAdapter):
             name = "failing"
 
+            @override
             async def send_payload(
                 self,
                 payload: PayloadInstance,
@@ -168,6 +172,7 @@ class TestRunScan:
         class UnhealthyAdapter(BaseAdapter):
             name = "unhealthy"
 
+            @override
             async def send_payload(
                 self,
                 payload: PayloadInstance,
@@ -175,6 +180,7 @@ class TestRunScan:
             ) -> AttackResult:
                 return AttackResult(payload_instance=payload)
 
+            @override
             async def health_check(self) -> bool:
                 return False
 

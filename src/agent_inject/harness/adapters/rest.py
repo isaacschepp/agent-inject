@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, override
 
 import httpx
 
@@ -31,10 +31,12 @@ class RestAdapter(BaseAdapter):
         self.timeout = timeout
         self._client = httpx.AsyncClient(timeout=self.timeout)
 
+    @override
     async def close(self) -> None:
         """Close the persistent HTTP client."""
         await self._client.aclose()
 
+    @override
     async def send_payload(
         self,
         payload: PayloadInstance,
@@ -62,6 +64,7 @@ class RestAdapter(BaseAdapter):
 
         return AttackResult(payload_instance=payload, raw_output=raw_output)
 
+    @override
     async def health_check(self) -> bool:
         """Check if the target responds."""
         try:
