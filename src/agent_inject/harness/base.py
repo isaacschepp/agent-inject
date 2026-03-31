@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Self
 
 from agent_inject.models import AttackResult, PayloadInstance, ToolCall
 
@@ -29,3 +29,12 @@ class BaseAdapter(ABC):
     async def health_check(self) -> bool:
         """Verify connectivity to the target agent."""
         return True
+
+    async def close(self) -> None:  # noqa: B027
+        """Release resources. Subclasses should override."""
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *exc: object) -> None:
+        await self.close()
