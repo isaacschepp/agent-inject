@@ -42,6 +42,8 @@ class FixedJailbreakAttack(BaseAttack):
     _target_outcomes: ClassVar[tuple[TargetOutcome, ...]] = (TargetOutcome.GOAL_HIJACKING,)
     _source: ClassVar[str] = ""
     _year: ClassVar[int] = 2026
+    _mitre_atlas_ids: ClassVar[tuple[str, ...]] = ()
+    _owasp_llm_ids: ClassVar[tuple[str, ...]] = ()
 
     def generate_payloads(
         self,
@@ -82,6 +84,8 @@ class FixedJailbreakAttack(BaseAttack):
                 target_outcomes=self._target_outcomes,
                 source=self._source or self.__class__.__module__,
                 year=self._year,
+                mitre_atlas_ids=self._mitre_atlas_ids,
+                owasp_llm_ids=self._owasp_llm_ids,
             )
             instances.append(
                 PayloadInstance(
