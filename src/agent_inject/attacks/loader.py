@@ -30,6 +30,16 @@ class YamlAttackEntry(BaseModel):
     mitre_atlas_ids: list[str] = []
     owasp_llm_ids: list[str] = []
 
+    @field_validator("name")
+    @classmethod
+    def name_must_be_valid(cls, v: str) -> str:
+        """Ensure name is not empty or whitespace-only."""
+        stripped = v.strip()
+        if not stripped:
+            msg = "name must not be empty or whitespace-only"
+            raise ValueError(msg)
+        return stripped
+
     @field_validator("templates")
     @classmethod
     def templates_not_empty(cls, v: list[str]) -> list[str]:
@@ -112,6 +122,6 @@ def _iter_yaml_files(root: Traversable) -> list[Traversable]:
                 results.extend(_iter_yaml_files(item))
             elif item.name.endswith((".yaml", ".yml")):
                 results.append(item)
-    except (FileNotFoundError, TypeError):
+    except FileNotFoundError:
         pass
     return results

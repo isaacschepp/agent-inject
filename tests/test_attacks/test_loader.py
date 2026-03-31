@@ -42,6 +42,18 @@ class TestYamlAttackEntry:
         with pytest.raises(Exception, match="templates must not be empty"):
             YamlAttackEntry(name="bad", templates=[])
 
+    def test_empty_name_raises(self) -> None:
+        with pytest.raises(Exception, match="name must not be empty"):
+            YamlAttackEntry(name="", templates=["x: {goal}"])
+
+    def test_whitespace_name_raises(self) -> None:
+        with pytest.raises(Exception, match="name must not be empty"):
+            YamlAttackEntry(name="   ", templates=["x: {goal}"])
+
+    def test_name_stripped(self) -> None:
+        entry = YamlAttackEntry(name="  foo  ", templates=["x: {goal}"])
+        assert entry.name == "foo"
+
     def test_invalid_tier_raises(self) -> None:
         with pytest.raises(ValueError, match="Input should be"):
             YamlAttackEntry(name="bad", tier="nonexistent", templates=["x"])
