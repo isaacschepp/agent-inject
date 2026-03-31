@@ -7,6 +7,7 @@ from typing import ClassVar
 
 from typer.testing import CliRunner
 
+from agent_inject import __version__
 from agent_inject.attacks.base import FixedJailbreakAttack
 from agent_inject.attacks.registry import _ATTACKS, register_attack
 from agent_inject.cli import app
@@ -71,4 +72,4 @@ class TestVersion:
     def test_output(self) -> None:
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
-        assert "0.1.1" in _strip(result.stdout)
+        assert __version__ in _strip(result.stdout)
