@@ -117,7 +117,11 @@ async def _send_all(
 
     async def _send_one(instance: PayloadInstance) -> AttackResult:
         async with sem:
-            return await adapter.send_payload(instance)
+            try:
+                return await adapter.send_payload(instance)
+            except Exception as e:
+                _logger.warning("Send failed for %s: %s", instance.payload.id, e)
+                return AttackResult(payload_instance=instance, error=str(e))
 
     async with asyncio.TaskGroup() as tg:
         tasks = [tg.create_task(_send_one(inst)) for inst in instances]
