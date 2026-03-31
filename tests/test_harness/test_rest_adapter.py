@@ -72,6 +72,15 @@ class TestHealthCheck:
         assert await adapter.health_check() is False
 
 
+class TestContextManager:
+    @respx.mock
+    async def test_context_manager(self, sample_payload_instance: PayloadInstance) -> None:
+        respx.post("https://agent.test/").mock(return_value=httpx.Response(200, json={"response": "ok"}))
+        async with RestAdapter("https://agent.test/") as adapter:
+            result = await adapter.send_payload(sample_payload_instance)
+        assert result.raw_output == "ok"
+
+
 class TestInit:
     def test_trailing_slash_stripped(self) -> None:
         adapter = RestAdapter("https://agent.test/")

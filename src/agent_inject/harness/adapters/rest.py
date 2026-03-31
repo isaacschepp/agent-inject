@@ -29,6 +29,11 @@ class RestAdapter(BaseAdapter):
         self.message_field = message_field
         self.response_field = response_field
         self.timeout = timeout
+        self._client = httpx.AsyncClient(timeout=self.timeout)
+
+    async def close(self) -> None:
+        """Close the persistent HTTP client."""
+        await self._client.aclose()
 
     async def send_payload(
         self,
@@ -40,26 +45,24 @@ class RestAdapter(BaseAdapter):
         if context:
             body.update(context)
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            try:
-                resp = await client.post(
-                    self.base_url,
-                    json=body,
-                    headers=self.headers,
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                raw_output = str(data.get(self.response_field, data))
-            except httpx.HTTPError as e:
-                return AttackResult(payload_instance=payload, error=str(e))
+        try:
+            resp = await self._client.post(
+                self.base_url,
+                json=body,
+                headers=self.headers,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            raw_output = str(data.get(self.response_field, data))
+        except httpx.HTTPError as e:
+            return AttackResult(payload_instance=payload, error=str(e))
 
         return AttackResult(payload_instance=payload, raw_output=raw_output)
 
     async def health_check(self) -> bool:
         """Check if the target responds."""
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            try:
-                resp = await client.get(self.base_url, headers=self.headers)
-                return resp.status_code < 500
-            except httpx.HTTPError:
-                return False
+        try:
+            resp = await self._client.get(self.base_url, headers=self.headers)
+            return resp.status_code < 500
+        except httpx.HTTPError:
+            return False
