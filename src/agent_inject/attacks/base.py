@@ -68,7 +68,7 @@ class FixedJailbreakAttack(BaseAttack):
             format_vars["canary"] = canary
             try:
                 rendered = template.format(**format_vars)
-            except KeyError as exc:
+            except (KeyError, ValueError, IndexError) as exc:
                 _logger.warning(
                     "Skipping %s template %d: missing placeholder %s",
                     self.name,
