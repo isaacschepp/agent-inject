@@ -18,8 +18,10 @@ class TestRegisterAttack:
             name = "_test_registry_attack"
             _templates: ClassVar[list[str]] = ["Test: {goal}"]
 
-        assert "_test_registry_attack" in _ATTACKS
-        del _ATTACKS["_test_registry_attack"]
+        try:
+            assert "_test_registry_attack" in _ATTACKS
+        finally:
+            _ATTACKS.pop("_test_registry_attack", None)
 
     def test_fixed_jailbreak_generates_payloads(self) -> None:
         class SimpleAttack(FixedJailbreakAttack):
