@@ -64,7 +64,11 @@ def _discover_builtin_attacks() -> None:
         attacks_pkg.__path__,
         prefix="agent_inject.attacks.",
     ):
-        if module_info.name in ("agent_inject.attacks.base", "agent_inject.attacks.registry"):
+        if module_info.name in (
+            "agent_inject.attacks.base",
+            "agent_inject.attacks.registry",
+            "agent_inject.attacks.loader",
+        ):
             continue
         try:
             module = importlib.import_module(module_info.name)
