@@ -34,6 +34,8 @@ class FixedJailbreakAttack(BaseAttack):
     """Convenience class for template-based attacks."""
 
     _templates: ClassVar[list[str]] = []
+    _tier: ClassVar[PayloadTier] = PayloadTier.CLASSIC
+    _target_outcomes: ClassVar[tuple[TargetOutcome, ...]] = (TargetOutcome.GOAL_HIJACKING,)
 
     def generate_payloads(
         self,
@@ -58,9 +60,9 @@ class FixedJailbreakAttack(BaseAttack):
             payload = Payload(
                 id=f"{self.name}-{i}",
                 template=template,
-                tier=PayloadTier.CLASSIC,
+                tier=self._tier,
                 delivery_vectors=(delivery_vector,),
-                target_outcomes=(TargetOutcome.GOAL_HIJACKING,),
+                target_outcomes=self._target_outcomes,
                 source=self.__class__.__module__,
                 year=2026,
             )
