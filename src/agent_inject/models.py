@@ -57,6 +57,8 @@ class Payload:
     description: str = ""
     tested_models: tuple[str, ...] = ()
     baseline_asr: float | None = None
+    mitre_atlas_ids: tuple[str, ...] = ()
+    owasp_llm_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
