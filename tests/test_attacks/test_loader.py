@@ -88,6 +88,21 @@ class TestBuildAttackClass:
         assert cls._target_outcomes == (TargetOutcome.TOOL_ABUSE,)
         assert cls._templates == ["Attack: {goal}"]
 
+    def test_metadata_passthrough(self) -> None:
+        entry = YamlAttackEntry(
+            name="meta-test",
+            templates=["test: {goal}"],
+            source="TestSource/2022",
+            year=2022,
+            mitre_atlas_ids=["AML.T0051"],
+            owasp_llm_ids=["LLM01:2025"],
+        )
+        cls = _build_attack_class(entry)
+        assert cls._source == "TestSource/2022"
+        assert cls._year == 2022
+        assert cls._mitre_atlas_ids == ("AML.T0051",)
+        assert cls._owasp_llm_ids == ("LLM01:2025",)
+
     def test_generates_payloads(self) -> None:
         entry = YamlAttackEntry(
             name="gen-test",
@@ -148,3 +163,62 @@ class TestLoadYamlPayloads:
             result = load_yaml_payloads(existing={})
 
         assert result == {}
+
+    def test_handles_empty_yaml_file(self, tmp_path: Path) -> None:
+        (tmp_path / "empty.yaml").write_text("")
+
+        with patch("agent_inject.attacks.loader.files") as mock_files:
+            mock_files.return_value.joinpath.return_value = tmp_path
+            result = load_yaml_payloads(existing={})
+
+        assert result == {}
+
+    def test_loads_from_subdirectory(self, tmp_path: Path) -> None:
+        sub = tmp_path / "direct"
+        sub.mkdir()
+        (sub / "test.yaml").write_text(yaml.dump({"attacks": [{"name": "sub-test", "templates": ["x: {goal}"]}]}))
+
+        with patch("agent_inject.attacks.loader.files") as mock_files:
+            mock_files.return_value.joinpath.return_value = tmp_path
+            result = load_yaml_payloads(existing={})
+
+        assert "sub-test" in result
+
+    def test_loads_multiple_files(self, tmp_path: Path) -> None:
+        (tmp_path / "a.yaml").write_text(yaml.dump({"attacks": [{"name": "a1", "templates": ["a: {goal}"]}]}))
+        (tmp_path / "b.yaml").write_text(yaml.dump({"attacks": [{"name": "b1", "templates": ["b: {goal}"]}]}))
+
+        with patch("agent_inject.attacks.loader.files") as mock_files:
+            mock_files.return_value.joinpath.return_value = tmp_path
+            result = load_yaml_payloads(existing={})
+
+        assert "a1" in result
+        assert "b1" in result
+
+    def test_intra_file_collision(self, tmp_path: Path) -> None:
+        (tmp_path / "dup.yaml").write_text(
+            yaml.dump(
+                {
+                    "attacks": [
+                        {"name": "dup", "templates": ["first: {goal}"]},
+                        {"name": "dup", "templates": ["second: {goal}"]},
+                    ]
+                }
+            )
+        )
+
+        with patch("agent_inject.attacks.loader.files") as mock_files:
+            mock_files.return_value.joinpath.return_value = tmp_path
+            result = load_yaml_payloads(existing={})
+
+        assert "dup" in result
+        assert len(result) == 1
+
+    def test_yml_extension(self, tmp_path: Path) -> None:
+        (tmp_path / "test.yml").write_text(yaml.dump({"attacks": [{"name": "yml-test", "templates": ["x: {goal}"]}]}))
+
+        with patch("agent_inject.attacks.loader.files") as mock_files:
+            mock_files.return_value.joinpath.return_value = tmp_path
+            result = load_yaml_payloads(existing={})
+
+        assert "yml-test" in result
