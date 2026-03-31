@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,8 +26,8 @@ class AgentInjectConfig(BaseSettings):
     output_dir: Path = Path("./results")
     output_format: str = "json"
     verbose: bool = False
-    openai_api_key: str = ""
-    anthropic_api_key: str = ""
+    openai_api_key: SecretStr = SecretStr("")
+    anthropic_api_key: SecretStr = SecretStr("")
     canary_match_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
     use_llm_judge: bool = False
     judge_model: str = "gpt-4o-mini"

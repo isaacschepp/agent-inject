@@ -21,8 +21,8 @@ class TestDefaults:
         assert cfg.output_dir == Path("./results")
         assert cfg.output_format == "json"
         assert cfg.verbose is False
-        assert cfg.openai_api_key == ""
-        assert cfg.anthropic_api_key == ""
+        assert cfg.openai_api_key.get_secret_value() == ""
+        assert cfg.anthropic_api_key.get_secret_value() == ""
         assert cfg.canary_match_threshold == 0.8
         assert cfg.use_llm_judge is False
         assert cfg.judge_model == "gpt-4o-mini"
