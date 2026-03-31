@@ -108,9 +108,9 @@ class AttackResult:
     utility_preserved: bool = True
     detection_evaded: bool = True
     raw_output: str = ""
-    tool_calls: list[ToolCall] = field(default_factory=lambda: list[ToolCall]())
-    environment_diff: dict[str, Any] = field(default_factory=lambda: dict[str, Any]())
-    scorer_details: dict[str, Any] = field(default_factory=lambda: dict[str, Any]())
+    tool_calls: list[ToolCall] = field(default_factory=lambda: list[ToolCall]())  # noqa: PLW0108 — pyright strict needs typed factory
+    environment_diff: dict[str, Any] = field(default_factory=lambda: dict[str, Any]())  # noqa: PLW0108
+    scorer_details: dict[str, Any] = field(default_factory=lambda: dict[str, Any]())  # noqa: PLW0108
     error: str | None = None
 
 

@@ -101,33 +101,59 @@ docs = [
 packages = ["src/agent_inject"]
 
 [tool.ruff]
-target-version = "py312"
 line-length = 120
 src = ["src"]
 
 [tool.ruff.lint]
-select = [
-    "F",
-    "E",
-    "W",
-    "I",
-    "B",
-    "C4",
-    "UP",
-    "SIM",
-    "PIE",
-    "PGH",
-    "RUF",
-    "PERF",
-    "T20",
-    "ASYNC",
-    "S",
-    "N",
+select = ["ALL"]
+ignore = [
+    # Formatter conflicts (mandatory)
+    "COM812",  # missing-trailing-comma — formatter handles commas
+    "ISC001",  # single-line-implicit-string-concatenation — conflicts with formatter
+    # Docstring rules (deferred to separate issue)
+    "D100",    # undocumented-public-module
+    "D101",    # undocumented-public-class
+    "D102",    # undocumented-public-method
+    "D103",    # undocumented-public-function
+    "D104",    # undocumented-public-package
+    "D105",    # undocumented-magic-method
+    "D107",    # undocumented-public-__init__
+    "D203",    # incorrect-blank-line-before-class (conflicts with D211)
+    "D213",    # multi-line-summary-second-line (conflicts with D212)
+    # Annotations (pyright strict handles these better)
+    "ANN",     # flake8-annotations — redundant with pyright strict mode
+    # Intentional patterns in this codebase
+    "PLC0415", # import-outside-top-level — lazy imports for circular import avoidance
+    "PLW0603", # global-statement — thread-safe registry uses global with lock
+    "PLR0913", # too-many-arguments — Typer CLI and engine signatures are inherently wide
+    "PLR2004", # magic-value-comparison — literal numbers are clearer in test assertions
+    "FBT",     # flake8-boolean-trap — Typer uses boolean flags as positional CLI args
+    "TRY003",  # long-exception-messages — we use descriptive f-string error messages
+    "FIX",     # fixme/todo markers — we use TODO/XXX intentionally
+    "TD002",   # missing-todo-author
+    "TD003",   # missing-todo-issue-link
+    "ERA001",  # commented-out-code — occasional explanatory pseudo-code in comments
+    # Not applicable to this project
+    "DJ",      # flake8-django
+    "PD",      # pandas-vet
+    "NPY",     # numpy-specific
+    "AIR",     # Airflow-specific
+    "FAST",    # FastAPI-specific
 ]
-ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S"]
+"tests/**/*.py" = [
+    "S",       # security rules (test code uses hardcoded values, assert, etc.)
+    "ARG",     # unused-arguments (stub implementations and fixtures)
+    "BLE",     # blind-except (testing exception handling)
+    "EM",      # error-message formatting (test assertions don't need extracted messages)
+    "TRY",     # tryceratops (test exception patterns are intentionally simple)
+    "PLW0108", # unnecessary-lambda (lambda stubs in test doubles)
+    "SLF001",  # private-member-access (tests verify internal state)
+    "PT011",   # pytest-raises-too-broad (some tests intentionally catch broad exceptions)
+    "D",       # docstrings (defer for tests)
+    "TC",      # type-checking imports (not worth optimizing in tests)
+]
 "src/agent_inject/evasion/**" = ["RUF001"]
 
 [tool.ruff.lint.isort]

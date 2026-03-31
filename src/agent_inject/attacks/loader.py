@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping
 from importlib.resources import files
-from importlib.resources.abc import Traversable
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from importlib.resources.abc import Traversable
 
 import yaml
 from pydantic import BaseModel, ValidationError, field_validator
@@ -84,6 +86,7 @@ def load_yaml_payloads(existing: Mapping[str, Any]) -> dict[str, type[FixedJailb
 
     Returns:
         Dict mapping attack name to dynamically created attack class.
+
     """
     result: dict[str, type[FixedJailbreakAttack]] = {}
     payloads_root = files("agent_inject").joinpath("data", "payloads")

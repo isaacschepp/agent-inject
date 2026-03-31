@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Self
 
-from agent_inject.models import AttackResult, PayloadInstance, ToolCall
+if TYPE_CHECKING:
+    from agent_inject.models import AttackResult, PayloadInstance, ToolCall
 
 
 class BaseAdapter(ABC):
