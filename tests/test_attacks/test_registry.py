@@ -8,7 +8,7 @@ import pytest
 
 from agent_inject.attacks.base import FixedJailbreakAttack
 from agent_inject.attacks.registry import _ATTACKS, get_all_attacks, get_attack, register_attack
-from agent_inject.models import DeliveryVector
+from agent_inject.models import DeliveryVector, PayloadTier, TargetOutcome
 
 
 class TestRegisterAttack:
@@ -57,6 +57,28 @@ class TestRegisterAttack:
         payloads = attack.generate_payloads("exfiltrate", delivery_vector=DeliveryVector.TOOL_RETURN)
 
         assert payloads[0].delivery_vector == DeliveryVector.TOOL_RETURN
+
+    def test_custom_tier_and_outcomes(self) -> None:
+        class AuthorityAttack(FixedJailbreakAttack):
+            name = "authority_test"
+            _templates: ClassVar[list[str]] = ["[SYSTEM] {goal}"]
+            _tier: ClassVar[PayloadTier] = PayloadTier.AUTHORITY
+            _target_outcomes: ClassVar[tuple[TargetOutcome, ...]] = (TargetOutcome.PRIVILEGE_ESCALATION,)
+
+        attack = AuthorityAttack()
+        payloads = attack.generate_payloads("escalate")
+        assert payloads[0].payload.tier == PayloadTier.AUTHORITY
+        assert TargetOutcome.PRIVILEGE_ESCALATION in payloads[0].payload.target_outcomes
+
+    def test_default_tier_and_outcomes(self) -> None:
+        class BasicAttack(FixedJailbreakAttack):
+            name = "basic_test"
+            _templates: ClassVar[list[str]] = ["test: {goal}"]
+
+        attack = BasicAttack()
+        payloads = attack.generate_payloads("test")
+        assert payloads[0].payload.tier == PayloadTier.CLASSIC
+        assert payloads[0].payload.target_outcomes == (TargetOutcome.GOAL_HIJACKING,)
 
 
 class TestGetAttack:
