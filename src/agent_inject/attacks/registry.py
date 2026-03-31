@@ -46,7 +46,7 @@ def _ensure_discovered() -> None:
     if _discovered:
         return
     with _lock:
-        if _discovered:
+        if _discovered:  # pragma: no cover
             return
         _discover_builtin_attacks()
         _load_yaml_payloads()
