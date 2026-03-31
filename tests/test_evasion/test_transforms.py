@@ -13,8 +13,10 @@ from agent_inject.evasion.transforms import (
     Leetspeak,
     TextReversal,
     ZeroWidthInsert,
+    apply_evasion_chains,
     compose,
 )
+from agent_inject.models import PayloadInstance
 
 
 class TestBase64Encode:
@@ -116,3 +118,55 @@ class TestInstructionReturns:
 
     def test_zero_width_no_instruction(self) -> None:
         assert ZeroWidthInsert().instruction() is None
+
+
+class TestTransformChainRender:
+    def test_render_with_instructions(self) -> None:
+        chain = compose(Base64Encode())
+        result = chain.render("test payload")
+        assert "Base64-encoded" in result
+        assert result.endswith(Base64Encode().apply("test payload"))
+
+    def test_render_without_instructions(self) -> None:
+        chain = compose(Leetspeak())
+        result = chain.render("test payload")
+        assert result == Leetspeak().apply("test payload")
+
+
+class TestApplyEvasionChains:
+    def test_single_chain(self, sample_payload_instance: PayloadInstance) -> None:
+        chain = compose(Base64Encode())
+        result = apply_evasion_chains([sample_payload_instance], [chain])
+        assert len(result) == 2
+        assert result[0] is sample_payload_instance
+        assert result[1].evasion_chain == ("base64",)
+        assert result[1].rendered != sample_payload_instance.rendered
+
+    def test_multiple_chains(self, sample_payload_instance: PayloadInstance) -> None:
+        chains = [compose(Base64Encode()), compose(ROT13())]
+        result = apply_evasion_chains([sample_payload_instance], chains)
+        assert len(result) == 3
+
+    def test_exclude_originals(self, sample_payload_instance: PayloadInstance) -> None:
+        result = apply_evasion_chains(
+            [sample_payload_instance],
+            [compose(Leetspeak())],
+            include_originals=False,
+        )
+        assert len(result) == 1
+        assert result[0].evasion_chain == ("leetspeak",)
+
+    def test_instructions_prepended(self, sample_payload_instance: PayloadInstance) -> None:
+        result = apply_evasion_chains([sample_payload_instance], [compose(Base64Encode())])
+        assert "Base64-encoded" in result[1].rendered
+
+    def test_no_instructions_not_prepended(self, sample_payload_instance: PayloadInstance) -> None:
+        result = apply_evasion_chains([sample_payload_instance], [compose(Leetspeak())])
+        assert result[1].rendered == Leetspeak().apply(sample_payload_instance.rendered)
+
+    def test_preserves_payload_metadata(self, sample_payload_instance: PayloadInstance) -> None:
+        result = apply_evasion_chains([sample_payload_instance], [compose(ROT13())])
+        assert result[1].payload == sample_payload_instance.payload
+        assert result[1].goal == sample_payload_instance.goal
+        assert result[1].rogue_string == sample_payload_instance.rogue_string
+        assert result[1].delivery_vector == sample_payload_instance.delivery_vector

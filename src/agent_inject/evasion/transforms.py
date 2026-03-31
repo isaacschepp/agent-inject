@@ -8,6 +8,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import ClassVar
 
+from agent_inject.models import PayloadInstance
+
 
 class EvasionTransform(ABC):
     """Base class for evasion transforms."""
@@ -39,6 +41,12 @@ class TransformChain:
     def instructions(self) -> list[str]:
         """Collect all decoder instructions."""
         return [inst for t in self.transforms if (inst := t.instruction())]
+
+    def render(self, text: str) -> str:
+        """Apply transforms and prepend decoder instructions."""
+        encoded = self.apply(text)
+        instructions = self.instructions()
+        return "\n".join([*instructions, encoded]) if instructions else encoded
 
 
 class Base64Encode(EvasionTransform):
@@ -159,3 +167,34 @@ BUILTIN_TRANSFORMS: dict[str, type[EvasionTransform]] = {
 def compose(*transforms: EvasionTransform) -> TransformChain:
     """Create a transform chain from individual transforms."""
     return TransformChain(transforms=transforms)
+
+
+def apply_evasion_chains(
+    instances: list[PayloadInstance],
+    chains: list[TransformChain],
+    *,
+    include_originals: bool = True,
+) -> list[PayloadInstance]:
+    """Apply evasion chains to payloads, producing Tier 4 variants.
+
+    Each chain is applied to each instance, producing len(instances) * len(chains)
+    new PayloadInstances. Originals are included by default.
+    """
+    results: list[PayloadInstance] = []
+    if include_originals:
+        results.extend(instances)
+    for instance in instances:
+        for chain in chains:
+            rendered = chain.render(instance.rendered)
+            results.append(
+                PayloadInstance(
+                    payload=instance.payload,
+                    rendered=rendered,
+                    delivery_vector=instance.delivery_vector,
+                    evasion_chain=tuple(t.name for t in chain.transforms),
+                    goal=instance.goal,
+                    rogue_string=instance.rogue_string,
+                    escape_config=instance.escape_config,
+                )
+            )
+    return results
