@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  UV_FROZEN: true
+  UV_LOCKED: true
   FORCE_COLOR: 1
 
 jobs:
