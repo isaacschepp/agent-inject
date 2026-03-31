@@ -61,6 +61,12 @@ class TestHomoglyph:
         assert result != "ace"
         assert len(result) == 3
 
+    def test_uppercase_replaced(self) -> None:
+        t = Homoglyph()
+        result = t.apply("ACE")
+        assert result != "ACE"
+        assert len(result) == 3
+
 
 class TestFullwidthChars:
     def test_conversion(self) -> None:

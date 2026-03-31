@@ -105,8 +105,9 @@ class Homoglyph(EvasionTransform):
     name = "homoglyph"
 
     _GLYPH_TABLE: ClassVar[dict[int, int]] = str.maketrans(
-        "aceiopxy",
-        "\u0430\u0441\u0435\u0456\u043e\u0440\u0445\u0443",
+        "aceiopxysjABCEHIKMOPTXY",
+        "\u0430\u0441\u0435\u0456\u043e\u0440\u0445\u0443\u0455\u0458"
+        "\u0410\u0412\u0421\u0415\u041d\u0406\u041a\u041c\u041e\u0420\u0422\u0425\u0423",
     )
 
     def apply(self, text: str) -> str:
