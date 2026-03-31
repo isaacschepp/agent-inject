@@ -163,3 +163,27 @@ class TestRunScan:
         assert result.total_payloads == 1
         assert result.results[0].error is not None
         assert "target down" in result.results[0].error
+
+    async def test_health_check_failure_aborts(self) -> None:
+        class UnhealthyAdapter(BaseAdapter):
+            name = "unhealthy"
+
+            async def send_payload(
+                self,
+                payload: PayloadInstance,
+                context: dict[str, Any] | None = None,
+            ) -> AttackResult:
+                return AttackResult(payload_instance=payload)
+
+            async def health_check(self) -> bool:
+                return False
+
+        adapter = UnhealthyAdapter()
+        result = await run_scan(
+            adapter,
+            attacks=[SimpleAttack()],
+            scorers=[],
+            goal="test",
+        )
+        assert result.total_payloads == 0
+        assert result.results == ()

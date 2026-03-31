@@ -60,6 +60,13 @@ async def run_scan(
     # 1. Health check
     if not await adapter.health_check():
         _logger.warning("Adapter health check failed for %s", adapter.name)
+        return ScanResult(
+            results=(),
+            scores=(),
+            total_payloads=0,
+            successful_attacks=0,
+            duration_seconds=round(time.monotonic() - start, 2),
+        )
 
     # 2. Generate payloads
     instances: list[PayloadInstance] = []
