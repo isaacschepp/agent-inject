@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
+import dataclasses
+import json
+import re
 from pathlib import Path
 from typing import Annotated
 
@@ -16,24 +20,76 @@ app = typer.Typer(
 )
 console = Console()
 
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
 
 @app.command()
 def scan(
-    target: Annotated[str, typer.Argument(help="Target agent endpoint or config file")],
-    attacks: Annotated[list[str] | None, typer.Option("--attack", "-a", help="Attack modules to run")] = None,
-    output: Annotated[Path, typer.Option("--output", "-o", help="Output file for results")] = Path("results.json"),
-    config: Annotated[Path | None, typer.Option("--config", "-c", help="YAML config file")] = None,
+    target: Annotated[str, typer.Argument(help="Target agent endpoint URL")],
+    goal: Annotated[str, typer.Option("--goal", "-g", help="Injection objective")],
+    attacks: Annotated[list[str] | None, typer.Option("--attack", "-a", help="Attack names to run")] = None,
+    output: Annotated[Path, typer.Option("--output", "-o", help="Output JSON file")] = Path("results.json"),
+    max_concurrent: Annotated[int, typer.Option("--concurrency", help="Max parallel sends")] = 5,
     verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Verbose output")] = False,
 ) -> None:
     """Run attack suite against target agent."""
-    console.print("[bold]agent-inject[/bold] v0.1.0")
-    console.print(f"Target: {target}")
-    console.print(f"Attacks: {attacks or 'all'}")
-    console.print(f"Output: {output}")
-    if config:
-        console.print(f"Config: {config}")
+    try:
+        asyncio.run(_async_scan(target, goal, attacks, output, max_concurrent, verbose))
+    except KeyError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=1) from None
+
+
+async def _async_scan(
+    target: str,
+    goal: str,
+    attack_names: list[str] | None,
+    output: Path,
+    max_concurrent: int,
+    verbose: bool,
+) -> None:
+    """Async scan implementation."""
+    from agent_inject.attacks.registry import get_all_attacks, get_attack
+    from agent_inject.engine import run_scan
+    from agent_inject.harness.adapters.rest import RestAdapter
+    from agent_inject.scorers.base import BaseScorer, CanaryMatchScorer, SubstringMatchScorer
+
+    # Resolve attacks
+    if attack_names:
+        resolved_attacks = [get_attack(name)() for name in attack_names]
+    else:
+        all_attacks = get_all_attacks()
+        if not all_attacks:
+            console.print(
+                "[yellow]No attacks registered. Add YAML payloads to data/payloads/ or use --attack.[/yellow]"
+            )
+            return
+        resolved_attacks = [cls() for cls in all_attacks.values()]
+
     if verbose:
-        console.print("Verbose mode enabled")
+        console.print(f"Target: {target}")
+        console.print(f"Goal: {goal}")
+        console.print(f"Attacks: {[a.name for a in resolved_attacks]}")
+        console.print(f"Concurrency: {max_concurrent}")
+
+    scorers: list[BaseScorer] = [CanaryMatchScorer(), SubstringMatchScorer()]
+
+    async with RestAdapter(target) as adapter:
+        result = await run_scan(
+            adapter,
+            attacks=resolved_attacks,
+            scorers=scorers,
+            goal=goal,
+            max_concurrent=max_concurrent,
+        )
+
+    output.write_text(json.dumps(dataclasses.asdict(result), indent=2, default=str))  # noqa: ASYNC240
+    console.print(
+        f"[bold green]Scan complete:[/bold green] "
+        f"{result.successful_attacks}/{result.total_payloads} successful "
+        f"in {result.duration_seconds}s"
+    )
+    console.print(f"Results written to {output}")
 
 
 @app.command()

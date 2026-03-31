@@ -22,32 +22,21 @@ def _strip(text: str) -> str:
 
 
 class TestScan:
-    def test_basic(self) -> None:
+    def test_missing_goal_fails(self) -> None:
         result = runner.invoke(app, ["scan", "https://example.com"])
-        assert result.exit_code == 0
+        assert result.exit_code != 0
+
+    def test_unknown_attack_fails(self) -> None:
+        result = runner.invoke(app, ["scan", "https://example.com", "--goal", "test", "--attack", "nonexistent_xyz"])
+        assert result.exit_code != 0
+        assert "Error" in _strip(result.stdout) or result.exit_code == 1
+
+    def test_no_attacks_registered(self) -> None:
+        result = runner.invoke(app, ["scan", "https://example.com", "--goal", "test"])
         out = _strip(result.stdout)
-        assert "Target: https://example.com" in out
-        assert "Attacks: all" in out
-
-    def test_with_attacks(self) -> None:
-        result = runner.invoke(app, ["scan", "https://x.com", "--attack", "direct"])
+        # With no attacks registered and no YAML payloads, should show message
         assert result.exit_code == 0
-        assert "direct" in _strip(result.stdout)
-
-    def test_with_config(self) -> None:
-        result = runner.invoke(app, ["scan", "https://x.com", "--config", "test.yaml"])
-        assert result.exit_code == 0
-        assert "Config: test.yaml" in _strip(result.stdout)
-
-    def test_verbose(self) -> None:
-        result = runner.invoke(app, ["scan", "https://x.com", "--verbose"])
-        assert result.exit_code == 0
-        assert "Verbose mode enabled" in _strip(result.stdout)
-
-    def test_output_shown(self) -> None:
-        result = runner.invoke(app, ["scan", "https://x.com", "--output", "out.json"])
-        assert result.exit_code == 0
-        assert "Output: out.json" in _strip(result.stdout)
+        assert "No attacks" in out or "Scan complete" in out
 
 
 class TestListAttacks:
