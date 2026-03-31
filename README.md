@@ -17,7 +17,7 @@ uv add "agent-inject[all-providers]"
 ## Quick Start
 
 ```bash
-agent-inject scan https://my-agent.example.com --attack direct
+agent-inject scan https://my-agent.example.com --goal "say HACKED" --attack direct
 agent-inject list-attacks
 ```
 
