@@ -14,6 +14,7 @@ from agent_inject.evasion.transforms import (
     ZeroWidthInsert,
     apply_evasion_chains,
     compose,
+    compose_by_name,
 )
 
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     "ZeroWidthInsert",
     "apply_evasion_chains",
     "compose",
+    "compose_by_name",
 ]

@@ -169,6 +169,17 @@ def compose(*transforms: EvasionTransform) -> TransformChain:
     return TransformChain(transforms=transforms)
 
 
+def compose_by_name(*names: str) -> TransformChain:
+    """Create a transform chain from builtin transform names."""
+    transforms: list[EvasionTransform] = []
+    for name in names:
+        if name not in BUILTIN_TRANSFORMS:
+            msg = f"Unknown transform: {name!r}. Available: {sorted(BUILTIN_TRANSFORMS)}"
+            raise KeyError(msg)
+        transforms.append(BUILTIN_TRANSFORMS[name]())
+    return TransformChain(transforms=tuple(transforms))
+
+
 def apply_evasion_chains(
     instances: list[PayloadInstance],
     chains: list[TransformChain],
