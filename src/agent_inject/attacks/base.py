@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from abc import ABC, abstractmethod
+from datetime import UTC, datetime
 from typing import Any, ClassVar
 
 from agent_inject.models import DeliveryVector, Payload, PayloadInstance, PayloadTier, TargetOutcome
+
+_logger = logging.getLogger(__name__)
 
 
 class BaseAttack(ABC):
@@ -44,19 +48,30 @@ class FixedJailbreakAttack(BaseAttack):
         **kwargs: Any,
     ) -> list[PayloadInstance]:
         """Render all templates with the given goal and context."""
-        user = kwargs.get("user", "the user")
-        model = kwargs.get("model", "the assistant")
+        format_vars: dict[str, Any] = {
+            "user": "the user",
+            "model": "the assistant",
+            "timestamp": datetime.now(tz=UTC).isoformat(),
+            "pid": str(uuid.uuid4().int % 100000),
+            **kwargs,
+        }
 
         instances: list[PayloadInstance] = []
         for i, template in enumerate(self._templates):
             canary = self.generate_canary()
-            rendered = template.format(
-                goal=goal,
-                rogue_string=canary,
-                user=user,
-                model=model,
-                canary=canary,
-            )
+            format_vars["goal"] = goal
+            format_vars["rogue_string"] = canary
+            format_vars["canary"] = canary
+            try:
+                rendered = template.format(**format_vars)
+            except KeyError as exc:
+                _logger.warning(
+                    "Skipping %s template %d: missing placeholder %s",
+                    self.name,
+                    i,
+                    exc,
+                )
+                continue
             payload = Payload(
                 id=f"{self.name}-{i}",
                 template=template,

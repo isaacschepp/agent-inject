@@ -94,6 +94,38 @@ class TestRegisterAttack:
         assert payloads[0].payload.tier == PayloadTier.CLASSIC
         assert payloads[0].payload.target_outcomes == (TargetOutcome.GOAL_HIJACKING,)
 
+    def test_kwargs_forwarded(self) -> None:
+        class CustomAttack(FixedJailbreakAttack):
+            name = "custom_test"
+            _templates: ClassVar[list[str]] = ["{persona} says: {goal}"]
+
+        attack = CustomAttack()
+        payloads = attack.generate_payloads("test", persona="Dr. Evil")
+        assert "Dr. Evil" in payloads[0].rendered
+
+    def test_unknown_placeholder_skipped(self) -> None:
+        class BadAttack(FixedJailbreakAttack):
+            name = "bad_test"
+            _templates: ClassVar[list[str]] = [
+                "Good: {goal}",
+                "Bad: {nonexistent_var}",
+            ]
+
+        attack = BadAttack()
+        payloads = attack.generate_payloads("test")
+        assert len(payloads) == 1
+        assert "test" in payloads[0].rendered
+
+    def test_timestamp_and_pid_auto_generated(self) -> None:
+        class AlertAttack(FixedJailbreakAttack):
+            name = "alert_test"
+            _templates: ClassVar[list[str]] = ["[PID: {pid}] [{timestamp}] {goal}"]
+
+        attack = AlertAttack()
+        payloads = attack.generate_payloads("escalate")
+        assert "escalate" in payloads[0].rendered
+        assert "[PID:" in payloads[0].rendered
+
 
 class TestGetAttack:
     def test_known(self) -> None:
