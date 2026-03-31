@@ -140,3 +140,26 @@ class TestRunScan:
             delivery_vector=DeliveryVector.TOOL_RETURN,
         )
         assert result.results[0].payload_instance.delivery_vector == DeliveryVector.TOOL_RETURN
+
+    async def test_send_failure_preserved(self) -> None:
+        class FailingAdapter(BaseAdapter):
+            name = "failing"
+
+            async def send_payload(
+                self,
+                payload: PayloadInstance,
+                context: dict[str, Any] | None = None,
+            ) -> AttackResult:
+                msg = "target down"
+                raise ConnectionError(msg)
+
+        adapter = FailingAdapter()
+        result = await run_scan(
+            adapter,
+            attacks=[SimpleAttack()],
+            scorers=[],
+            goal="test",
+        )
+        assert result.total_payloads == 1
+        assert result.results[0].error is not None
+        assert "target down" in result.results[0].error
