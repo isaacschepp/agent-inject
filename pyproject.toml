@@ -90,6 +90,9 @@ tests = [
     "hypothesis>=6.0",
     "respx>=0.22",
 ]
+fuzzing = [
+    "atheris>=2.3.0",
+]
 linting = [
     "ruff>=0.15",
     "pre-commit>=4.0",
