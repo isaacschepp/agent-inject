@@ -55,7 +55,9 @@ keywords = [
 [project.optional-dependencies]
 openai = ["openai>=2.0,<3.0"]
 anthropic = ["anthropic>=0.47"]
-langchain = ["langchain>=1.2"]
+langchain-core = ["langchain-core>=1.0,<2"]
+langgraph = ["langgraph>=1.0,<2"]
+langchain = ["langchain>=1.2,<2"]
 all-providers = [
     "agent-inject[openai]",
     "agent-inject[anthropic]",
