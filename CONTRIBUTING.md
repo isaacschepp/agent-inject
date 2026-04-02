@@ -82,6 +82,21 @@ Types: feat, fix, refactor, docs, test, chore, perf, ci
 
 PRs are squash-merged by the maintainer.
 
+## Code Review
+
+All PRs are reviewed by a maintainer before merge. Reviews check for:
+
+- **Correctness** -- does the change do what it claims?
+- **Tests** -- are new code paths covered? Does coverage stay above 95%?
+- **Security** -- no hardcoded secrets, safe deserialization, input validation
+  on untrusted data, no shell injection vectors
+- **Style** -- CI enforces ruff and pyright; manual review focuses on naming,
+  clarity, and architectural fit
+- **Scope** -- changes are focused and minimal; no unrelated refactoring
+
+CI must pass before review. Reviewers may request changes, approve, or close
+with an explanation.
+
 ## Governance
 
 The project owner (Isaac Schepp) makes all final decisions on design, merges,
