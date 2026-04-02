@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 agent-inject contributors
+# SPDX-License-Identifier: MIT
+
 """CLI entry point for agent-inject."""
 
 from __future__ import annotations

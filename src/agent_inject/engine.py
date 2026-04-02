@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 agent-inject contributors
+# SPDX-License-Identifier: MIT
+
 """Scan engine: orchestrates attacks, evasion, delivery, and scoring."""
 
 from __future__ import annotations

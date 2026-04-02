@@ -27,6 +27,16 @@ repos:
     rev: 0.11.3
     hooks:
       - id: uv-lock
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.5.6
+    hooks:
+      - id: insert-license
+        files: \.py$
+        args:
+          - --license-filepath
+          - .license-header.txt
+          - --comment-style
+          - "#"
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
     rev: v1.23.1
     hooks:

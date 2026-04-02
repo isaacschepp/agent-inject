@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 agent-inject contributors
+# SPDX-License-Identifier: MIT
+
 """Base scorer interface and built-in scorers."""
 
 from __future__ import annotations

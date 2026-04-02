@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 agent-inject contributors
+# SPDX-License-Identifier: MIT
+
 """Core data models used across all modules."""
 
 from __future__ import annotations

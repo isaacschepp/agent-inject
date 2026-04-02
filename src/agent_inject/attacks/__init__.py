@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 agent-inject contributors
+# SPDX-License-Identifier: MIT
+
 """Attack modules for agent-inject."""
 
 from agent_inject.attacks.base import BaseAttack, FixedJailbreakAttack

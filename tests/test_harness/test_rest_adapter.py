@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 agent-inject contributors
+# SPDX-License-Identifier: MIT
+
 """Tests for REST adapter using respx to mock httpx."""
 
 from __future__ import annotations
