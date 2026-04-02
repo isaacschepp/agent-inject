@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/isaacschepp/agent-inject/actions/workflows/ci.yml/badge.svg)](https://github.com/isaacschepp/agent-inject/actions/workflows/ci.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/isaacschepp/agent-inject/badge)](https://scorecard.dev/viewer/?uri=github.com/isaacschepp/agent-inject)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12353/badge)](https://www.bestpractices.dev/projects/12353)
 
 Offensive testing framework for AI agent systems.
 
