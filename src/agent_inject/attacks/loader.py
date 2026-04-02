@@ -31,6 +31,7 @@ class YamlAttackEntry(BaseModel):
     year: int = 2026
     mitre_atlas_ids: list[str] = []
     owasp_llm_ids: list[str] = []
+    owasp_asi_ids: list[str] = []
 
     @field_validator("name")
     @classmethod
@@ -74,6 +75,7 @@ def _build_attack_class(entry: YamlAttackEntry) -> type[FixedJailbreakAttack]:
             "_year": entry.year,
             "_mitre_atlas_ids": tuple(entry.mitre_atlas_ids),
             "_owasp_llm_ids": tuple(entry.owasp_llm_ids),
+            "_owasp_asi_ids": tuple(entry.owasp_asi_ids),
         },
     )
 

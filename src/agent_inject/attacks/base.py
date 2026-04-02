@@ -44,6 +44,7 @@ class FixedJailbreakAttack(BaseAttack):
     _year: ClassVar[int] = 2026
     _mitre_atlas_ids: ClassVar[tuple[str, ...]] = ()
     _owasp_llm_ids: ClassVar[tuple[str, ...]] = ()
+    _owasp_asi_ids: ClassVar[tuple[str, ...]] = ()
 
     @override
     def generate_payloads(
@@ -87,6 +88,7 @@ class FixedJailbreakAttack(BaseAttack):
                 year=self._year,
                 mitre_atlas_ids=self._mitre_atlas_ids,
                 owasp_llm_ids=self._owasp_llm_ids,
+                owasp_asi_ids=self._owasp_asi_ids,
             )
             instances.append(
                 PayloadInstance(
