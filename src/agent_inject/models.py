@@ -18,6 +18,8 @@ class DeliveryVector(StrEnum):
     CODE_COMMENT = "code_comment"
     MCP_DESCRIPTION = "mcp_description"
     FILE_METADATA = "file_metadata"
+    INTER_AGENT_MESSAGE = "inter_agent_message"
+    PLUGIN_REGISTRY = "plugin_registry"
 
 
 class TargetOutcome(StrEnum):
@@ -30,6 +32,13 @@ class TargetOutcome(StrEnum):
     STATE_MODIFICATION = "state_modification"
     PRIVILEGE_ESCALATION = "privilege_escalation"
     DENIAL_OF_SERVICE = "denial_of_service"
+    SUPPLY_CHAIN_COMPROMISE = "supply_chain_compromise"
+    CODE_EXECUTION = "code_execution"
+    MEMORY_POISONING = "memory_poisoning"
+    INTER_AGENT_ATTACK = "inter_agent_attack"
+    TRUST_EXPLOITATION = "trust_exploitation"
+    AGENT_MISALIGNMENT = "agent_misalignment"
+    CASCADING_FAILURE = "cascading_failure"
 
 
 class PayloadTier(StrEnum):
@@ -59,6 +68,7 @@ class Payload:
     baseline_asr: float | None = None
     mitre_atlas_ids: tuple[str, ...] = ()
     owasp_llm_ids: tuple[str, ...] = ()
+    owasp_asi_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
