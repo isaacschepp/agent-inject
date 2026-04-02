@@ -103,6 +103,20 @@ The project owner (Isaac Schepp) makes all final decisions on design, merges,
 and releases. Contributions are accepted via pull requests with maintainer
 review.
 
+## Access Policy
+
+Escalated permissions (write access, merge approval, secrets access) are
+granted only by the project owner after review. Before granting elevated
+access, the owner verifies:
+
+- A history of quality contributions to this project or other open source work
+- Identity corroborated through a known organization or established GitHub
+  presence
+- No unresolved security or conduct concerns
+
+Current access holders are listed in
+[MAINTAINERS.md](MAINTAINERS.md).
+
 ## Legal
 
 By submitting a pull request, you agree that your contributions are licensed
