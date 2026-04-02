@@ -59,12 +59,15 @@ If you are unsure whether something is in scope, report it anyway. We would rath
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.1.x   | Yes (current)      |
-| < 0.1   | No                 |
+| Version | Supported | Support Scope |
+| ------- | --------- | ------------- |
+| 0.1.x   | Yes       | Security fixes, bug fixes, new features |
+| < 0.1   | No        | Unsupported |
 
-Security fixes are applied to the latest release only.
+Only the latest release receives updates. When a new minor or major version is
+released, the previous version is no longer supported. Security fixes are
+backported only to the current release line. There is no long-term support (LTS)
+at this stage of the project.
 
 ## Reporting a Vulnerability
 
