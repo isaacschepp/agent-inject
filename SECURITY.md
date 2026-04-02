@@ -144,6 +144,20 @@ We consider security research conducted in good faith to be authorized and will 
 
 This safe harbor covers testing **agent-inject the tool**. It does not authorize using agent-inject to test systems you do not own or have explicit permission to test.
 
+## Secrets Management
+
+- **Application secrets**: API keys are loaded from environment variables
+  (`AGENT_INJECT_` prefix) or `.env` files, never hardcoded. Stored in code as
+  pydantic `SecretStr` to prevent accidental logging or repr exposure.
+- **CI/CD secrets**: Managed via GitHub Actions encrypted secrets. PyPI
+  publishing uses OIDC trusted publishing (no long-lived API tokens).
+- **Detection**: GitHub secret scanning and push protection are enabled.
+  Pre-commit hooks catch accidental credential commits.
+- **Rotation**: If a secret is exposed, revoke immediately, rotate the
+  credential, and audit git history for the exposure scope.
+- **Source control**: `.env` files are excluded via `.gitignore`. Only
+  `.env.example` (with placeholder values) is committed.
+
 ## Legal Notice
 
 agent-inject is provided for authorized security testing only. Operators are responsible for obtaining proper authorization before testing target systems. This security policy covers vulnerabilities in agent-inject itself, not the use of agent-inject against target systems.
