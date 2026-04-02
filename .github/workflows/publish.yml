@@ -6,7 +6,7 @@ on:
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
   attestations: write
 
 concurrency:
@@ -33,7 +33,21 @@ jobs:
             echo "::error::Tag v$TAG does not match pyproject.toml version $PKG_VERSION"
             exit 1
           fi
+      - uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+      - name: Generate SBOM
+        run: syft scan dir:. -o cyclonedx-json=sbom.cdx.json
+      - name: Export pylock.toml
+        run: uv export --format pylock.toml --output-file pylock.toml
       - run: uv build
+      - name: Attest SBOM
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-path: dist/*.whl
+          sbom-path: sbom.cdx.json
       - uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
         with:
           attestations: true
+      - name: Upload supply chain artifacts
+        run: gh release upload "${{ github.ref_name }}" sbom.cdx.json pylock.toml --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
