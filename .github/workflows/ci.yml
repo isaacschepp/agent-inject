@@ -94,6 +94,14 @@ jobs:
         with:
           name: dist
           path: dist/
+      - uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+          artifact-name: sbom.cdx.json
+          upload-artifact: true
+          upload-release-assets: false
 
   dependency-review:
     if: github.event_name == 'pull_request'
