@@ -82,6 +82,12 @@ Types: feat, fix, refactor, docs, test, chore, perf, ci
 
 PRs are squash-merged by the maintainer.
 
+## Governance
+
+The project owner (Isaac Schepp) makes all final decisions on design, merges,
+and releases. Contributions are accepted via pull requests with maintainer
+review.
+
 ## Legal
 
 By submitting a pull request, you agree that your contributions are licensed
