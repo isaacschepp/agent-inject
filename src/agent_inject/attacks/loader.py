@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 agent-inject contributors
+# SPDX-License-Identifier: MIT
+
 """YAML payload loader for data-driven attacks."""
 
 from __future__ import annotations

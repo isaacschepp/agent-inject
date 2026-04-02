@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 agent-inject contributors
+# SPDX-License-Identifier: MIT
+
 """Evasion transforms for bypassing injection detectors."""
 
 from agent_inject.evasion.transforms import (

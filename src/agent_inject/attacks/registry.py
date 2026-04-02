@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 agent-inject contributors
+# SPDX-License-Identifier: MIT
+
 """Attack registry with decorator-based registration and importlib discovery."""
 
 from __future__ import annotations

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 agent-inject contributors
+# SPDX-License-Identifier: MIT
+
 """Generic REST/HTTP adapter for any agent exposed via API."""
 
 from __future__ import annotations
