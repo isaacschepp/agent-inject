@@ -1,5 +1,8 @@
 # agent-inject
 
+[![CI](https://github.com/isaacschepp/agent-inject/actions/workflows/ci.yml/badge.svg)](https://github.com/isaacschepp/agent-inject/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/isaacschepp/agent-inject/badge)](https://scorecard.dev/viewer/?uri=github.com/isaacschepp/agent-inject)
+
 Offensive testing framework for AI agent systems.
 
 Unlike existing tools that test LLM text output, `agent-inject` tests the **interaction layer** between agents, tools, infrastructure, and users — observing tool calls, parameter manipulation, and state changes.
