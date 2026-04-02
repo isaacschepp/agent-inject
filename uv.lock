@@ -28,6 +28,12 @@ anthropic = [
 langchain = [
     { name = "langchain" },
 ]
+langchain-core = [
+    { name = "langchain-core" },
+]
+langgraph = [
+    { name = "langgraph" },
+]
 openai = [
     { name = "openai" },
 ]
@@ -79,7 +85,9 @@ requires-dist = [
     { name = "agent-inject", extras = ["openai"], marker = "extra == 'all-providers'" },
     { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=0.47" },
     { name = "httpx", specifier = ">=0.27,<1" },
-    { name = "langchain", marker = "extra == 'langchain'", specifier = ">=1.2" },
+    { name = "langchain", marker = "extra == 'langchain'", specifier = ">=1.2,<2" },
+    { name = "langchain-core", marker = "extra == 'langchain-core'", specifier = ">=1.0,<2" },
+    { name = "langgraph", marker = "extra == 'langgraph'", specifier = ">=1.0,<2" },
     { name = "openai", marker = "extra == 'openai'", specifier = ">=2.0,<3.0" },
     { name = "pydantic", specifier = ">=2.7" },
     { name = "pydantic-settings", specifier = ">=2.0" },
@@ -88,7 +96,7 @@ requires-dist = [
     { name = "rich", specifier = ">=13.0" },
     { name = "typer", specifier = ">=0.24" },
 ]
-provides-extras = ["openai", "anthropic", "langchain", "all-providers"]
+provides-extras = ["openai", "anthropic", "langchain-core", "langgraph", "langchain", "all-providers"]
 
 [package.metadata.requires-dev]
 dev = [
