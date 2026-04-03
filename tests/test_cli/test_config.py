@@ -40,8 +40,11 @@ class TestDefaults:
         assert cfg.secrets.anthropic_api_key.get_secret_value() == ""
         # ScoringConfig
         assert cfg.scoring.canary_match_threshold == 0.8
-        assert cfg.scoring.use_llm_judge is False
-        assert cfg.scoring.judge_model == "gpt-4o-mini"
+        # JudgeConfig (nested inside ScoringConfig)
+        assert cfg.scoring.judge.enabled is False
+        assert cfg.scoring.judge.model == "openai:gpt-4o-mini"
+        assert cfg.scoring.judge.temperature == 0.0
+        assert cfg.scoring.judge.max_tokens == 1024
 
     def test_output_dir_is_path(self) -> None:
         cfg = AgentInjectConfig()
@@ -124,24 +127,47 @@ class TestValidation:
         cfg = AgentInjectConfig(engine={"max_turns": 100})
         assert cfg.engine.max_turns == 100
 
-    # --- judge_model non-empty ---
+    # --- JudgeConfig validation ---
 
     def test_judge_model_empty_rejected(self) -> None:
         with pytest.raises(ValidationError):
-            AgentInjectConfig(scoring={"judge_model": ""})
+            AgentInjectConfig(scoring={"judge": {"model": ""}})
 
-    # --- Cross-field: LLM judge requires API key ---
+    def test_judge_temperature_too_high(self) -> None:
+        with pytest.raises(ValidationError):
+            AgentInjectConfig(scoring={"judge": {"temperature": 2.5}})
 
-    def test_llm_judge_without_key_rejected(self) -> None:
+    def test_judge_max_tokens_zero_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            AgentInjectConfig(scoring={"judge": {"max_tokens": 0}})
+
+    # --- Cross-field: LLM judge requires provider-specific API key ---
+
+    def test_openai_judge_without_key_rejected(self) -> None:
         with pytest.raises(ValidationError, match="openai_api_key required"):
-            AgentInjectConfig(scoring={"use_llm_judge": True})
+            AgentInjectConfig(scoring={"judge": {"enabled": True, "model": "openai:gpt-4o-mini"}})
 
-    def test_llm_judge_with_key_accepted(self) -> None:
+    def test_openai_judge_with_key_accepted(self) -> None:
         cfg = AgentInjectConfig(
-            scoring={"use_llm_judge": True},
+            scoring={"judge": {"enabled": True, "model": "openai:gpt-4o-mini"}},
             secrets={"openai_api_key": SecretStr("sk-test-key")},
         )
-        assert cfg.scoring.use_llm_judge is True
+        assert cfg.scoring.judge.enabled is True
+
+    def test_anthropic_judge_without_key_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="anthropic_api_key required"):
+            AgentInjectConfig(scoring={"judge": {"enabled": True, "model": "anthropic:claude-3-haiku"}})
+
+    def test_anthropic_judge_with_key_accepted(self) -> None:
+        cfg = AgentInjectConfig(
+            scoring={"judge": {"enabled": True, "model": "anthropic:claude-3-haiku"}},
+            secrets={"anthropic_api_key": SecretStr("sk-ant-test-key")},
+        )
+        assert cfg.scoring.judge.enabled is True
+
+    def test_judge_disabled_needs_no_key(self) -> None:
+        cfg = AgentInjectConfig(scoring={"judge": {"enabled": False}})
+        assert cfg.scoring.judge.enabled is False
 
 
 class TestFrozen:

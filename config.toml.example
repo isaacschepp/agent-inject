@@ -33,8 +33,12 @@
 
 [scoring]
 # canary_match_threshold = 0.8
-# use_llm_judge = false
-# judge_model = "gpt-4o-mini"
+
+[scoring.judge]
+# enabled = false
+# model = "openai:gpt-4o-mini"   # provider:model format
+# temperature = 0.0
+# max_tokens = 1024
 
 [secrets]
 # Prefer env vars or a secrets manager for API keys.
