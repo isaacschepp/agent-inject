@@ -14,7 +14,7 @@ import logging
 from pathlib import Path
 from typing import Literal, Self, override
 
-from pydantic import Field, SecretStr, field_validator, model_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict, TomlConfigSettingsSource
 
 _logger = logging.getLogger(__name__)
@@ -32,26 +32,96 @@ def set_toml_override(path: Path | None) -> None:
     _toml_override = path
 
 
+# ---------------------------------------------------------------------------
+# Nested sub-models (BaseModel, NOT BaseSettings)
+# ---------------------------------------------------------------------------
+
+
+class TargetConfig(BaseModel, frozen=True):
+    """Target agent connection settings."""
+
+    url: str = ""
+    adapter: Literal["rest"] = "rest"
+    timeout_seconds: float = Field(default=30.0, gt=0)
+
+    @field_validator("url")
+    @classmethod
+    def _validate_url(cls, v: str) -> str:
+        if v and not v.startswith(("http://", "https://")):
+            msg = f"target url must be an HTTP(S) URL, got {v!r}"
+            raise ValueError(msg)
+        return v
+
+
+class EngineConfig(BaseModel, frozen=True):
+    """Scan engine behaviour."""
+
+    max_concurrent: int = Field(default=5, ge=1, le=50)
+    max_turns: int = Field(default=15, ge=1, le=100)
+
+
+class OutputConfig(BaseModel, frozen=True):
+    """Output and logging settings."""
+
+    dir: Path = Path("./results")
+    format: Literal["json"] = "json"
+    verbose: bool = False
+
+
+class SecretsConfig(BaseModel, frozen=True):
+    """API keys and sensitive credentials."""
+
+    openai_api_key: SecretStr = SecretStr("")
+    anthropic_api_key: SecretStr = SecretStr("")
+
+
+class ScoringConfig(BaseModel, frozen=True):
+    """Scoring and evaluation settings."""
+
+    canary_match_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
+    use_llm_judge: bool = False
+    judge_model: str = Field(default="gpt-4o-mini", min_length=1)
+
+
+# ---------------------------------------------------------------------------
+# Top-level config
+# ---------------------------------------------------------------------------
+
+
 class AgentInjectConfig(BaseSettings):
     """Global configuration for agent-inject.
 
     Configuration sources (highest to lowest priority):
       1. Constructor arguments / CLI overrides
-      2. Environment variables (``AGENT_INJECT_`` prefix)
+      2. Environment variables (``AGENT_INJECT_`` prefix, ``__`` nested delimiter)
       3. Explicitly specified env file (``--env-file``)
       4. TOML config file (``~/.config/agent-inject/config.toml`` or ``--config``)
       5. Field defaults
 
     CWD files (``.env``, ``agent-inject.toml``) are never loaded automatically.
+
+    Env var examples::
+
+        AGENT_INJECT_TARGET__URL=https://example.com
+        AGENT_INJECT_ENGINE__MAX_CONCURRENT=10
+        AGENT_INJECT_SCORING__USE_LLM_JUDGE=true
     """
 
     model_config = SettingsConfigDict(
         env_prefix=_ENV_PREFIX,
+        env_nested_delimiter="__",
+        nested_model_default_partial_update=True,
         env_file=None,
         env_file_encoding="utf-8",
         extra="ignore",
         frozen=True,
     )
+
+    target: TargetConfig = TargetConfig()
+    engine: EngineConfig = EngineConfig()
+    output: OutputConfig = OutputConfig()
+    secrets: SecretsConfig = SecretsConfig()
+    scoring: ScoringConfig = ScoringConfig()
 
     @classmethod
     @override
@@ -78,34 +148,12 @@ class AgentInjectConfig(BaseSettings):
 
         return tuple(sources)
 
-    target_url: str = ""
-    target_adapter: Literal["rest"] = "rest"
-    max_concurrent: int = Field(default=5, ge=1, le=50)
-    timeout_seconds: float = Field(default=30.0, gt=0)
-    max_turns: int = Field(default=15, ge=1, le=100)
-    output_dir: Path = Path("./results")
-    output_format: Literal["json"] = "json"
-    verbose: bool = False
-    openai_api_key: SecretStr = SecretStr("")
-    anthropic_api_key: SecretStr = SecretStr("")
-    canary_match_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
-    use_llm_judge: bool = False
-    judge_model: str = Field(default="gpt-4o-mini", min_length=1)
-
-    @field_validator("target_url")
-    @classmethod
-    def _validate_url(cls, v: str) -> str:
-        if v and not v.startswith(("http://", "https://")):
-            msg = f"target_url must be an HTTP(S) URL, got {v!r}"
-            raise ValueError(msg)
-        return v
-
     @model_validator(mode="after")
     def _require_api_key_for_judge(self) -> Self:
-        if self.use_llm_judge and not self.openai_api_key.get_secret_value():
+        if self.scoring.use_llm_judge and not self.secrets.openai_api_key.get_secret_value():
             msg = (
                 "openai_api_key required when use_llm_judge=True. "
-                "Set AGENT_INJECT_OPENAI_API_KEY or pass --openai-api-key."
+                "Set AGENT_INJECT_SECRETS__OPENAI_API_KEY or pass --openai-api-key."
             )
             raise ValueError(msg)
         return self

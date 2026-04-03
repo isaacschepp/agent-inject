@@ -64,11 +64,17 @@ def scan(
 
     # Build config: CLI args > env vars > .env > TOML > defaults.
     # Only pass CLI params that were explicitly provided so env vars can fill the rest.
-    overrides: dict[str, Any] = {"target_url": target, "verbose": verbose}
-    if max_concurrent is not None:
-        overrides["max_concurrent"] = max_concurrent
+    # Nested dicts are coerced to sub-models by pydantic.
+    target_overrides: dict[str, Any] = {"url": target}
     if timeout is not None:
-        overrides["timeout_seconds"] = timeout
+        target_overrides["timeout_seconds"] = timeout
+
+    overrides: dict[str, Any] = {
+        "target": target_overrides,
+        "output": {"verbose": verbose},
+    }
+    if max_concurrent is not None:
+        overrides["engine"] = {"max_concurrent": max_concurrent}
 
     config = AgentInjectConfig(**overrides, _env_file=env_file)  # pyright: ignore[reportCallIssue]
 
@@ -101,14 +107,14 @@ async def _async_scan(
             return
         resolved_attacks = [cls() for cls in all_attacks.values()]
 
-    if config.verbose:
-        console.print(f"Target: {config.target_url}")
-        console.print(f"Adapter: {config.target_adapter}")
+    if config.output.verbose:
+        console.print(f"Target: {config.target.url}")
+        console.print(f"Adapter: {config.target.adapter}")
         console.print(f"Goal: {goal}")
         console.print(f"Attacks: {[a.name for a in resolved_attacks]}")
-        console.print(f"Timeout: {config.timeout_seconds}s")
-        console.print(f"Concurrency: {config.max_concurrent}")
-        console.print(f"Canary threshold: {config.canary_match_threshold}")
+        console.print(f"Timeout: {config.target.timeout_seconds}s")
+        console.print(f"Concurrency: {config.engine.max_concurrent}")
+        console.print(f"Canary threshold: {config.scoring.canary_match_threshold}")
 
     adapter = _create_adapter(config)
     scorers = _create_scorers(config)
@@ -119,7 +125,7 @@ async def _async_scan(
             attacks=resolved_attacks,
             scorers=scorers,
             goal=goal,
-            max_concurrent=config.max_concurrent,
+            max_concurrent=config.engine.max_concurrent,
         )
 
     output.write_text(json.dumps(dataclasses.asdict(result), indent=2, default=str))  # noqa: ASYNC240
@@ -134,16 +140,16 @@ async def _async_scan(
 def _create_adapter(config: AgentInjectConfig) -> BaseAdapter:
     """Create adapter from config.
 
-    ``target_adapter`` is constrained to ``Literal["rest"]`` at the config
+    ``target.adapter`` is constrained to ``Literal["rest"]`` at the config
     level, so the match below is exhaustive.  Extend the Literal and add
     a new case when a second adapter ships.
     """
     from agent_inject.harness.adapters.rest import RestAdapter
 
-    if config.target_adapter == "rest":
-        return RestAdapter(config.target_url, timeout=config.timeout_seconds)
+    if config.target.adapter == "rest":
+        return RestAdapter(config.target.url, timeout=config.target.timeout_seconds)
     # Should be unreachable thanks to Literal constraint; guard for direct API callers.
-    msg = f"Unknown adapter: {config.target_adapter!r}"  # pragma: no cover
+    msg = f"Unknown adapter: {config.target.adapter!r}"  # pragma: no cover
     raise ValueError(msg)  # pragma: no cover
 
 
@@ -152,7 +158,7 @@ def _create_scorers(config: AgentInjectConfig) -> list[BaseScorer]:
     from agent_inject.scorers.base import CanaryMatchScorer, SubstringMatchScorer
 
     return [
-        CanaryMatchScorer(threshold=config.canary_match_threshold),
+        CanaryMatchScorer(threshold=config.scoring.canary_match_threshold),
         SubstringMatchScorer(),
     ]
 
