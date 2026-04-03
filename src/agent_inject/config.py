@@ -166,6 +166,36 @@ class AgentInjectConfig(BaseSettings):
         return self
 
 
+def _known_env_vars() -> set[str]:
+    """Build the set of valid ``AGENT_INJECT_*`` env var names from model fields."""
+    known: set[str] = set()
+    for top_name, top_info in AgentInjectConfig.model_fields.items():
+        sub_type = top_info.annotation
+        # All top-level fields are BaseModel sub-models with model_fields.
+        for sub_name in sub_type.model_fields:  # type: ignore[union-attr]
+            known.add(f"{_ENV_PREFIX}{top_name.upper()}__{sub_name.upper()}")
+    return known
+
+
+def warn_unknown_env_vars() -> None:
+    """Warn about ``AGENT_INJECT_*`` env vars that don't match any config field.
+
+    Helps catch typos like ``AGENT_INJECT_TARET__URL`` (should be ``TARGET``).
+    """
+    import os
+    from difflib import get_close_matches
+
+    known = _known_env_vars()
+    for key in os.environ:
+        if not key.startswith(_ENV_PREFIX):
+            continue
+        if key in known:
+            continue
+        suggestions = get_close_matches(key, sorted(known), n=1, cutoff=0.6)
+        hint = f" Did you mean {suggestions[0]!r}?" if suggestions else ""
+        _logger.warning("Unknown env var %r with prefix %r.%s", key, _ENV_PREFIX, hint)
+
+
 def warn_if_cwd_dotenv(*, env_file_provided: bool = False) -> None:
     """Emit a warning if CWD contains a ``.env`` with ``AGENT_INJECT_*`` vars.
 

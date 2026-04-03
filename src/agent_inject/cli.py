@@ -47,7 +47,12 @@ def scan(
     ] = None,
 ) -> None:
     """Run attack suite against target agent."""
-    from agent_inject.config import AgentInjectConfig, set_toml_override, warn_if_cwd_dotenv
+    from agent_inject.config import (
+        AgentInjectConfig,
+        set_toml_override,
+        warn_if_cwd_dotenv,
+        warn_unknown_env_vars,
+    )
 
     if env_file is not None and not env_file.is_file():
         console.print(f"[red]Error:[/red] env file not found: {env_file}")
@@ -77,6 +82,8 @@ def scan(
         overrides["engine"] = {"max_concurrent": max_concurrent}
 
     config = AgentInjectConfig(**overrides, _env_file=env_file)  # pyright: ignore[reportCallIssue]
+
+    warn_unknown_env_vars()
 
     # Configure logging from config.
     import logging as _logging
