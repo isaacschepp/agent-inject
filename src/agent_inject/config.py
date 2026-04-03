@@ -12,8 +12,9 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Literal, Self
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _logger = logging.getLogger(__name__)
@@ -42,18 +43,36 @@ class AgentInjectConfig(BaseSettings):
     )
 
     target_url: str = ""
-    target_adapter: str = "rest"
+    target_adapter: Literal["rest"] = "rest"
     max_concurrent: int = Field(default=5, ge=1, le=50)
     timeout_seconds: float = Field(default=30.0, gt=0)
-    max_turns: int = Field(default=15, ge=1)
+    max_turns: int = Field(default=15, ge=1, le=100)
     output_dir: Path = Path("./results")
-    output_format: str = "json"
+    output_format: Literal["json"] = "json"
     verbose: bool = False
     openai_api_key: SecretStr = SecretStr("")
     anthropic_api_key: SecretStr = SecretStr("")
     canary_match_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
     use_llm_judge: bool = False
-    judge_model: str = "gpt-4o-mini"
+    judge_model: str = Field(default="gpt-4o-mini", min_length=1)
+
+    @field_validator("target_url")
+    @classmethod
+    def _validate_url(cls, v: str) -> str:
+        if v and not v.startswith(("http://", "https://")):
+            msg = f"target_url must be an HTTP(S) URL, got {v!r}"
+            raise ValueError(msg)
+        return v
+
+    @model_validator(mode="after")
+    def _require_api_key_for_judge(self) -> Self:
+        if self.use_llm_judge and not self.openai_api_key.get_secret_value():
+            msg = (
+                "openai_api_key required when use_llm_judge=True. "
+                "Set AGENT_INJECT_OPENAI_API_KEY or pass --openai-api-key."
+            )
+            raise ValueError(msg)
+        return self
 
 
 def warn_if_cwd_dotenv(*, env_file_provided: bool = False) -> None:
