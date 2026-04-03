@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 from pydantic import SecretStr, ValidationError
 
-from agent_inject.config import AgentInjectConfig, warn_if_cwd_dotenv
+from agent_inject.config import AgentInjectConfig, warn_if_cwd_dotenv, warn_unknown_env_vars
 
 
 class TestDefaults:
@@ -461,6 +461,42 @@ class TestFullPriorityChain:
         assert cfg.engine.max_backtracks == 20
         # default (3) when nothing overrides
         assert cfg.engine.max_retries == 3
+
+
+class TestUnknownEnvVarWarning:
+    """Tests for warn_unknown_env_vars() typo detection."""
+
+    def test_warns_on_typo_with_suggestion(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        monkeypatch.setenv("AGENT_INJECT_TARET__URL", "https://typo.com")
+        with caplog.at_level(logging.WARNING, logger="agent_inject.config"):
+            warn_unknown_env_vars()
+        assert "Unknown env var" in caplog.text
+        assert "AGENT_INJECT_TARGET__URL" in caplog.text
+
+    def test_no_warning_for_valid_var(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+        monkeypatch.setenv("AGENT_INJECT_TARGET__URL", "https://valid.com")
+        with caplog.at_level(logging.WARNING, logger="agent_inject.config"):
+            warn_unknown_env_vars()
+        assert caplog.text == ""
+
+    def test_no_warning_for_non_prefixed(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        monkeypatch.setenv("OTHER_VAR", "value")
+        with caplog.at_level(logging.WARNING, logger="agent_inject.config"):
+            warn_unknown_env_vars()
+        assert caplog.text == ""
+
+    def test_no_suggestion_for_distant_typo(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        monkeypatch.setenv("AGENT_INJECT_ZZZZZZZ__XXXXXX", "value")
+        with caplog.at_level(logging.WARNING, logger="agent_inject.config"):
+            warn_unknown_env_vars()
+        assert "Unknown env var" in caplog.text
+        assert "Did you mean" not in caplog.text
 
 
 class TestCwdDotenvWarning:
