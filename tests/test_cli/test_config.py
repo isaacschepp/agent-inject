@@ -192,6 +192,71 @@ class TestEnvFileSecurity:
         assert dumped["openai_api_key"] != "sk-test-key-12345"
 
 
+class TestTomlConfig:
+    """TOML config file loading via settings_customise_sources."""
+
+    def test_toml_file_loaded(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """TOML config in XDG dir should be loaded."""
+        toml = tmp_path / "config.toml"
+        toml.write_text("max_concurrent = 42\n")
+        monkeypatch.setattr("agent_inject.paths.config_file", lambda: toml)
+        cfg = AgentInjectConfig()
+        assert cfg.max_concurrent == 42
+
+    def test_toml_does_not_exist_is_fine(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Missing TOML file should not cause an error."""
+        monkeypatch.setattr("agent_inject.paths.config_file", lambda: tmp_path / "nonexistent.toml")
+        cfg = AgentInjectConfig()
+        assert cfg.max_concurrent == 5  # default
+
+    def test_env_var_overrides_toml(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Env var should take priority over TOML value."""
+        toml = tmp_path / "config.toml"
+        toml.write_text("max_concurrent = 42\n")
+        monkeypatch.setattr("agent_inject.paths.config_file", lambda: toml)
+        monkeypatch.setenv("AGENT_INJECT_MAX_CONCURRENT", "7")
+        cfg = AgentInjectConfig()
+        assert cfg.max_concurrent == 7
+
+    def test_constructor_overrides_toml(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Constructor args should take priority over TOML."""
+        toml = tmp_path / "config.toml"
+        toml.write_text("max_concurrent = 42\n")
+        monkeypatch.setattr("agent_inject.paths.config_file", lambda: toml)
+        cfg = AgentInjectConfig(max_concurrent=3)
+        assert cfg.max_concurrent == 3
+
+    def test_toml_invalid_value_rejected(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Invalid TOML values should raise ValidationError."""
+        toml = tmp_path / "config.toml"
+        toml.write_text("max_concurrent = 999\n")
+        monkeypatch.setattr("agent_inject.paths.config_file", lambda: toml)
+        with pytest.raises(ValidationError):
+            AgentInjectConfig()
+
+    def test_toml_override_via_set_toml_override(self, tmp_path: Path) -> None:
+        """set_toml_override should redirect TOML loading to a custom path."""
+        from agent_inject.config import set_toml_override
+
+        toml = tmp_path / "custom.toml"
+        toml.write_text("timeout_seconds = 99.0\n")
+        set_toml_override(toml)
+        try:
+            cfg = AgentInjectConfig()
+            assert cfg.timeout_seconds == 99.0
+        finally:
+            set_toml_override(None)
+
+    def test_toml_keys_have_no_env_prefix(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """TOML keys should be field names without AGENT_INJECT_ prefix."""
+        toml = tmp_path / "config.toml"
+        # Use the field name directly, not the env var name
+        toml.write_text('target_url = "https://toml.example.com"\n')
+        monkeypatch.setattr("agent_inject.paths.config_file", lambda: toml)
+        cfg = AgentInjectConfig()
+        assert cfg.target_url == "https://toml.example.com"
+
+
 class TestCwdDotenvWarning:
     """Tests for the CWD .env detection warning."""
 

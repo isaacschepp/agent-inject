@@ -41,17 +41,28 @@ def scan(
         Path | None,
         typer.Option("--env-file", help="Path to .env file (not loaded from CWD by default)"),
     ] = None,
+    config_file: Annotated[
+        Path | None,
+        typer.Option("--config", help="Path to TOML config file"),
+    ] = None,
 ) -> None:
     """Run attack suite against target agent."""
-    from agent_inject.config import AgentInjectConfig, warn_if_cwd_dotenv
+    from agent_inject.config import AgentInjectConfig, set_toml_override, warn_if_cwd_dotenv
 
     if env_file is not None and not env_file.is_file():
         console.print(f"[red]Error:[/red] env file not found: {env_file}")
         raise typer.Exit(code=1)
 
+    if config_file is not None and not config_file.is_file():
+        console.print(f"[red]Error:[/red] config file not found: {config_file}")
+        raise typer.Exit(code=1)
+
     warn_if_cwd_dotenv(env_file_provided=env_file is not None)
 
-    # Build config: CLI args > env vars > defaults.
+    # Set TOML override before constructing config (consumed by settings_customise_sources).
+    set_toml_override(config_file)
+
+    # Build config: CLI args > env vars > .env > TOML > defaults.
     # Only pass CLI params that were explicitly provided so env vars can fill the rest.
     overrides: dict[str, Any] = {"target_url": target, "verbose": verbose}
     if max_concurrent is not None:

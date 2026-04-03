@@ -12,14 +12,24 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Literal, Self
+from typing import Literal, Self, override
 
 from pydantic import Field, SecretStr, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict, TomlConfigSettingsSource
 
 _logger = logging.getLogger(__name__)
 
 _ENV_PREFIX = "AGENT_INJECT_"
+
+# Module-level override for the TOML config file path.
+# Set via ``set_toml_override()`` before constructing ``AgentInjectConfig``.
+_toml_override: Path | None = None
+
+
+def set_toml_override(path: Path | None) -> None:
+    """Override the default TOML config file path (``--config`` flag)."""
+    global _toml_override
+    _toml_override = path
 
 
 class AgentInjectConfig(BaseSettings):
@@ -29,9 +39,10 @@ class AgentInjectConfig(BaseSettings):
       1. Constructor arguments / CLI overrides
       2. Environment variables (``AGENT_INJECT_`` prefix)
       3. Explicitly specified env file (``--env-file``)
-      4. Field defaults
+      4. TOML config file (``~/.config/agent-inject/config.toml`` or ``--config``)
+      5. Field defaults
 
-    CWD ``.env`` files are never loaded automatically.
+    CWD files (``.env``, ``agent-inject.toml``) are never loaded automatically.
     """
 
     model_config = SettingsConfigDict(
@@ -41,6 +52,31 @@ class AgentInjectConfig(BaseSettings):
         extra="ignore",
         frozen=True,
     )
+
+    @classmethod
+    @override
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        """Define config source priority: init > env > dotenv > TOML > defaults."""
+        from agent_inject.paths import config_file
+
+        sources: list[PydanticBaseSettingsSource] = [
+            init_settings,  # 1. CLI args / constructor kwargs
+            env_settings,  # 2. AGENT_INJECT_* env vars
+            dotenv_settings,  # 3. Explicit .env file (--env-file)
+        ]
+
+        toml_path = _toml_override or config_file()
+        if toml_path.is_file():
+            sources.append(TomlConfigSettingsSource(settings_cls, toml_file=toml_path))
+
+        return tuple(sources)
 
     target_url: str = ""
     target_adapter: Literal["rest"] = "rest"
