@@ -68,7 +68,7 @@ class TestListAdapters:
     def test_output(self) -> None:
         result = runner.invoke(app, ["list-adapters"])
         assert result.exit_code == 0
-        assert "No adapters registered" in _strip(result.stdout)
+        assert "rest" in _strip(result.stdout)
 
 
 class TestVersion:
