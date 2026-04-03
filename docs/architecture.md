@@ -9,11 +9,19 @@ evasion transforms encode them, adapters deliver them to target agents,
 and scorers evaluate the results.
 
 ```
-Attacks ──> Evasion ──> Engine ──> Adapter ──> Target Agent
-                          │                        │
-                          │<── AttackResult ────────┘
-                          │
-                       Scorers ──> Score
+Single-turn:
+  Attacks ──> Evasion ──> Engine ──> Adapter ──> Target Agent
+                            │                        │
+                            │<── AttackResult ────────┘
+                            │
+                         Scorers ──> Score
+
+Multi-turn:
+  Strategy ──> loop: generate prompt ──> Adapter ──> Target Agent
+      │                                                  │
+      │<── score ── Scorer <── AttackResult ──────────────┘
+      │
+      └── decide: escalate / backtrack / success / abort
 ```
 
 ## Components
@@ -65,7 +73,7 @@ adapters planned for OpenAI, Anthropic, LangChain, MCP, CrewAI, and others
 ### Scorers (`scorers/`)
 
 Evaluate whether an attack succeeded. Each scorer is an async function
-returning a `Score` (name, passed, value 0-1, rationale). Nine scorers:
+returning a `Score` (name, passed, value 0-1, rationale). Ten scorers:
 
 | Scorer | What It Detects |
 |--------|----------------|
@@ -78,6 +86,20 @@ returning a `Score` (name, passed, value 0-1, rationale). Nine scorers:
 | DataExfiltrationScorer | Sensitive data patterns in output/tools |
 | StateModificationScorer | Unauthorized environment changes |
 | UtilityPreservedScorer | Legitimate task still completed |
+| RefusalAnalysisScorer | Refusal behavior (5-level: full refusal to full compliance) |
+
+### Strategies (`strategies/`)
+
+Multi-turn attack orchestration. Strategies wrap the existing adapter and
+scorer to execute multi-turn conversations, separate from the single-turn
+pipeline.
+
+- `BaseMultiTurnStrategy` — abstract base with `execute()` loop
+- `CrescendoStrategy` — graduated escalation with 6-tier template sequence,
+  refusal detection, and backtracking (based on USENIX Security 2025 paper)
+- `ConversationState` — immutable snapshot with `add_turn()`, `backtrack()`,
+  `mark_success()` for functional state management
+- `MultiTurnResult` / `MultiTurnScanResult` — result types with ASR property
 
 ### Models (`models.py`)
 
