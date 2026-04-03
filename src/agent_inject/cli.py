@@ -8,7 +8,6 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import json
-import re
 from pathlib import Path
 from typing import Annotated
 
@@ -22,8 +21,6 @@ app = typer.Typer(
     rich_markup_mode="rich",
 )
 console = Console()
-
-_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 @app.command()
@@ -117,13 +114,14 @@ def list_attacks() -> None:
         console.print("[dim]No attacks registered.[/dim]")
         return
     for name, cls in sorted(attacks.items()):
-        console.print(f"  [bold]{name}[/bold] - {cls.__doc__ or 'No description'}")
+        desc = getattr(cls, "description", "") or cls.__doc__ or "No description"
+        console.print(f"  [bold]{name}[/bold] - {desc}")
 
 
 @app.command()
 def list_adapters() -> None:
     """List available target adapters."""
-    console.print("[dim]No adapters registered yet.[/dim]")
+    console.print("  [bold]rest[/bold] - Generic REST/HTTP adapter (httpx)")
 
 
 @app.command()
