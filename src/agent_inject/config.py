@@ -1,24 +1,44 @@
 # SPDX-FileCopyrightText: 2026 agent-inject contributors
 # SPDX-License-Identifier: MIT
 
-"""Configuration management via pydantic-settings."""
+"""Configuration management via pydantic-settings.
+
+Security: CWD ``.env`` files are **not** loaded by default (CWE-426).
+Pass an explicit path via ``_env_file`` or the CLI ``--env-file`` flag.
+See https://github.com/isaacschepp/agent-inject/issues/466
+"""
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_logger = logging.getLogger(__name__)
+
+_ENV_PREFIX = "AGENT_INJECT_"
+
 
 class AgentInjectConfig(BaseSettings):
-    """Global configuration for agent-inject."""
+    """Global configuration for agent-inject.
+
+    Configuration sources (highest to lowest priority):
+      1. Constructor arguments / CLI overrides
+      2. Environment variables (``AGENT_INJECT_`` prefix)
+      3. Explicitly specified env file (``--env-file``)
+      4. Field defaults
+
+    CWD ``.env`` files are never loaded automatically.
+    """
 
     model_config = SettingsConfigDict(
-        env_prefix="AGENT_INJECT_",
-        env_file=".env",
+        env_prefix=_ENV_PREFIX,
+        env_file=None,
         env_file_encoding="utf-8",
         extra="ignore",
+        frozen=True,
     )
 
     target_url: str = ""
@@ -34,3 +54,35 @@ class AgentInjectConfig(BaseSettings):
     canary_match_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
     use_llm_judge: bool = False
     judge_model: str = "gpt-4o-mini"
+
+
+def warn_if_cwd_dotenv(*, env_file_provided: bool = False) -> None:
+    """Emit a warning if CWD contains a ``.env`` with ``AGENT_INJECT_*`` vars.
+
+    Helps users discover the secure-default change without silent breakage.
+    Skipped when the caller already passed ``--env-file``.
+    """
+    if env_file_provided:
+        return
+
+    dotenv_path = Path.cwd() / ".env"
+    if not dotenv_path.is_file():
+        return
+
+    try:
+        text = dotenv_path.read_text(encoding="utf-8-sig")
+    except OSError:
+        return
+
+    has_prefixed = any(
+        line.strip().startswith(_ENV_PREFIX)
+        for line in text.splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    )
+    if has_prefixed:
+        _logger.warning(
+            "Found .env in current directory with %s* variables. "
+            "CWD .env files are not loaded by default (security: CWE-426). "
+            "To use it: agent-inject scan --env-file .env ...",
+            _ENV_PREFIX,
+        )
