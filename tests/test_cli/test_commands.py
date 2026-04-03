@@ -9,12 +9,13 @@ import re
 from typing import ClassVar
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from typer.testing import CliRunner
 
 from agent_inject import __version__
 from agent_inject.attacks.base import FixedJailbreakAttack
 from agent_inject.attacks.registry import _ATTACKS, register_attack
-from agent_inject.cli import app
+from agent_inject.cli import _create_adapter, _create_scorers, app
 
 runner = CliRunner()
 
@@ -77,7 +78,7 @@ class TestScan:
 
         try:
             with (
-                patch("agent_inject.harness.adapters.rest.RestAdapter", return_value=mock_adapter),
+                patch("agent_inject.cli._create_adapter", return_value=mock_adapter),
                 patch("agent_inject.engine.run_scan", new_callable=AsyncMock, return_value=mock_result),
             ):
                 result = runner.invoke(
@@ -96,8 +97,154 @@ class TestScan:
             assert "Target: https://example.com" in out
             assert "Goal: test" in out
             assert "Concurrency:" in out
+            assert "Timeout:" in out
+            assert "Canary threshold:" in out
         finally:
             _ATTACKS.pop("_verbose_test", None)
+
+    def test_env_var_override(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """AGENT_INJECT_MAX_CONCURRENT env var should flow through config."""
+
+        @register_attack
+        class _EnvTestAttack(FixedJailbreakAttack):
+            name = "_env_test"
+            _templates: ClassVar[list[str]] = ["test: {goal}"]
+
+        mock_adapter = AsyncMock()
+        mock_adapter.__aenter__ = AsyncMock(return_value=mock_adapter)
+        mock_adapter.__aexit__ = AsyncMock(return_value=None)
+
+        mock_result = AsyncMock()
+        mock_result.successful_attacks = 0
+        mock_result.total_payloads = 0
+        mock_result.duration_seconds = 0.1
+
+        monkeypatch.setenv("AGENT_INJECT_MAX_CONCURRENT", "42")
+
+        try:
+            with (
+                patch("agent_inject.cli._create_adapter", return_value=mock_adapter),
+                patch("agent_inject.engine.run_scan", new_callable=AsyncMock, return_value=mock_result) as mock_scan,
+            ):
+                result = runner.invoke(
+                    app,
+                    ["scan", "https://example.com", "--goal", "test", "--attack", "_env_test", "--verbose"],
+                )
+            out = _strip(result.stdout)
+            # Env var should be reflected in verbose output
+            assert "Concurrency: 42" in out
+            # And passed to run_scan
+            assert mock_scan.call_args.kwargs["max_concurrent"] == 42
+        finally:
+            _ATTACKS.pop("_env_test", None)
+
+    def test_cli_flag_overrides_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """--concurrency CLI flag should override AGENT_INJECT_MAX_CONCURRENT env var."""
+        from agent_inject.engine import ScanResult
+
+        @register_attack
+        class _OverrideTestAttack(FixedJailbreakAttack):
+            name = "_override_test"
+            _templates: ClassVar[list[str]] = ["test: {goal}"]
+
+        mock_adapter = AsyncMock()
+        mock_adapter.__aenter__ = AsyncMock(return_value=mock_adapter)
+        mock_adapter.__aexit__ = AsyncMock(return_value=None)
+
+        fake_result = ScanResult(results=(), scores=(), total_payloads=0, successful_attacks=0, duration_seconds=0.1)
+
+        monkeypatch.setenv("AGENT_INJECT_MAX_CONCURRENT", "42")
+
+        try:
+            with (
+                patch("agent_inject.cli._create_adapter", return_value=mock_adapter),
+                patch("agent_inject.engine.run_scan", new_callable=AsyncMock, return_value=fake_result) as mock_scan,
+            ):
+                result = runner.invoke(
+                    app,
+                    [
+                        "scan",
+                        "https://example.com",
+                        "--goal",
+                        "test",
+                        "--attack",
+                        "_override_test",
+                        "--concurrency",
+                        "7",
+                    ],
+                )
+            assert result.exit_code == 0
+            # CLI flag (7) should win over env var (42)
+            assert mock_scan.call_args.kwargs["max_concurrent"] == 7
+        finally:
+            _ATTACKS.pop("_override_test", None)
+
+    def test_timeout_flag_flows_to_config(self) -> None:
+        """--timeout CLI flag should set config.timeout_seconds."""
+        from agent_inject.engine import ScanResult
+
+        @register_attack
+        class _TimeoutTestAttack(FixedJailbreakAttack):
+            name = "_timeout_test"
+            _templates: ClassVar[list[str]] = ["test: {goal}"]
+
+        mock_adapter = AsyncMock()
+        mock_adapter.__aenter__ = AsyncMock(return_value=mock_adapter)
+        mock_adapter.__aexit__ = AsyncMock(return_value=None)
+
+        fake_result = ScanResult(results=(), scores=(), total_payloads=0, successful_attacks=0, duration_seconds=0.1)
+
+        try:
+            with (
+                patch("agent_inject.cli._create_adapter", return_value=mock_adapter) as mock_factory,
+                patch("agent_inject.engine.run_scan", new_callable=AsyncMock, return_value=fake_result),
+            ):
+                result = runner.invoke(
+                    app,
+                    [
+                        "scan",
+                        "https://example.com",
+                        "--goal",
+                        "test",
+                        "--attack",
+                        "_timeout_test",
+                        "--timeout",
+                        "60.0",
+                    ],
+                )
+            assert result.exit_code == 0
+            # Verify config passed to _create_adapter has the custom timeout
+            passed_config = mock_factory.call_args.args[0]
+            assert passed_config.timeout_seconds == 60.0
+        finally:
+            _ATTACKS.pop("_timeout_test", None)
+
+
+class TestFactories:
+    def test_create_adapter_rest(self) -> None:
+        from agent_inject.config import AgentInjectConfig
+        from agent_inject.harness.adapters.rest import RestAdapter
+
+        config = AgentInjectConfig(target_url="https://example.com", timeout_seconds=60.0)
+        adapter = _create_adapter(config)
+        assert isinstance(adapter, RestAdapter)
+        assert adapter.timeout == 60.0
+
+    def test_create_adapter_unknown(self) -> None:
+        from agent_inject.config import AgentInjectConfig
+
+        config = AgentInjectConfig(target_adapter="unknown")
+        with pytest.raises(ValueError, match="Unknown adapter"):
+            _create_adapter(config)
+
+    def test_create_scorers_uses_config_threshold(self) -> None:
+        from agent_inject.config import AgentInjectConfig
+        from agent_inject.scorers.base import CanaryMatchScorer
+
+        config = AgentInjectConfig(canary_match_threshold=0.6)
+        scorers = _create_scorers(config)
+        canary_scorer = next(s for s in scorers if isinstance(s, CanaryMatchScorer))
+        assert canary_scorer.threshold == 0.6
 
 
 class TestListAttacks:

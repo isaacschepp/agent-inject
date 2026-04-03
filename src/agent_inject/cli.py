@@ -9,10 +9,15 @@ import asyncio
 import dataclasses
 import json
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated, Any
 
 import typer
 from rich.console import Console
+
+if TYPE_CHECKING:
+    from agent_inject.config import AgentInjectConfig
+    from agent_inject.harness.base import BaseAdapter
+    from agent_inject.scorers.base import BaseScorer
 
 app = typer.Typer(
     name="agent-inject",
@@ -29,7 +34,8 @@ def scan(
     goal: Annotated[str, typer.Option("--goal", "-g", help="Injection objective")],
     attacks: Annotated[list[str] | None, typer.Option("--attack", "-a", help="Attack names to run")] = None,
     output: Annotated[Path, typer.Option("--output", "-o", help="Output JSON file")] = Path("results.json"),
-    max_concurrent: Annotated[int, typer.Option("--concurrency", help="Max parallel sends")] = 5,
+    max_concurrent: Annotated[int | None, typer.Option("--concurrency", help="Max parallel sends")] = None,
+    timeout: Annotated[float | None, typer.Option("--timeout", help="Request timeout in seconds")] = None,
     verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Verbose output")] = False,
     env_file: Annotated[
         Path | None,
@@ -37,7 +43,7 @@ def scan(
     ] = None,
 ) -> None:
     """Run attack suite against target agent."""
-    from agent_inject.config import warn_if_cwd_dotenv
+    from agent_inject.config import AgentInjectConfig, warn_if_cwd_dotenv
 
     if env_file is not None and not env_file.is_file():
         console.print(f"[red]Error:[/red] env file not found: {env_file}")
@@ -45,26 +51,32 @@ def scan(
 
     warn_if_cwd_dotenv(env_file_provided=env_file is not None)
 
+    # Build config: CLI args > env vars > defaults.
+    # Only pass CLI params that were explicitly provided so env vars can fill the rest.
+    overrides: dict[str, Any] = {"target_url": target, "verbose": verbose}
+    if max_concurrent is not None:
+        overrides["max_concurrent"] = max_concurrent
+    if timeout is not None:
+        overrides["timeout_seconds"] = timeout
+
+    config = AgentInjectConfig(**overrides, _env_file=env_file)  # pyright: ignore[reportCallIssue]
+
     try:
-        asyncio.run(_async_scan(target, goal, attacks, output, max_concurrent, verbose))
+        asyncio.run(_async_scan(config, goal, attacks, output))
     except KeyError as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(code=1) from None
 
 
 async def _async_scan(
-    target: str,
+    config: AgentInjectConfig,
     goal: str,
     attack_names: list[str] | None,
     output: Path,
-    max_concurrent: int,
-    verbose: bool,
 ) -> None:
     """Async scan implementation."""
     from agent_inject.attacks.registry import get_all_attacks, get_attack
     from agent_inject.engine import run_scan
-    from agent_inject.harness.adapters.rest import RestAdapter
-    from agent_inject.scorers.base import BaseScorer, CanaryMatchScorer, SubstringMatchScorer
 
     # Resolve attacks
     if attack_names:
@@ -78,21 +90,25 @@ async def _async_scan(
             return
         resolved_attacks = [cls() for cls in all_attacks.values()]
 
-    if verbose:
-        console.print(f"Target: {target}")
+    if config.verbose:
+        console.print(f"Target: {config.target_url}")
+        console.print(f"Adapter: {config.target_adapter}")
         console.print(f"Goal: {goal}")
         console.print(f"Attacks: {[a.name for a in resolved_attacks]}")
-        console.print(f"Concurrency: {max_concurrent}")
+        console.print(f"Timeout: {config.timeout_seconds}s")
+        console.print(f"Concurrency: {config.max_concurrent}")
+        console.print(f"Canary threshold: {config.canary_match_threshold}")
 
-    scorers: list[BaseScorer] = [CanaryMatchScorer(), SubstringMatchScorer()]
+    adapter = _create_adapter(config)
+    scorers = _create_scorers(config)
 
-    async with RestAdapter(target) as adapter:
+    async with adapter:
         result = await run_scan(
             adapter,
             attacks=resolved_attacks,
             scorers=scorers,
             goal=goal,
-            max_concurrent=max_concurrent,
+            max_concurrent=config.max_concurrent,
         )
 
     output.write_text(json.dumps(dataclasses.asdict(result), indent=2, default=str))  # noqa: ASYNC240
@@ -102,6 +118,26 @@ async def _async_scan(
         f"in {result.duration_seconds}s"
     )
     console.print(f"Results written to {output}")
+
+
+def _create_adapter(config: AgentInjectConfig) -> BaseAdapter:
+    """Create adapter from config."""
+    from agent_inject.harness.adapters.rest import RestAdapter
+
+    if config.target_adapter != "rest":
+        msg = f"Unknown adapter: {config.target_adapter!r}. Available: ['rest']"
+        raise ValueError(msg)
+    return RestAdapter(config.target_url, timeout=config.timeout_seconds)
+
+
+def _create_scorers(config: AgentInjectConfig) -> list[BaseScorer]:
+    """Create scorers from config."""
+    from agent_inject.scorers.base import CanaryMatchScorer, SubstringMatchScorer
+
+    return [
+        CanaryMatchScorer(threshold=config.canary_match_threshold),
+        SubstringMatchScorer(),
+    ]
 
 
 @app.command()

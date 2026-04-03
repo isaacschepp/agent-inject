@@ -43,7 +43,7 @@ async def run_scan(
     goal: str,
     evasion_chains: list[TransformChain] | None = None,
     delivery_vector: DeliveryVector = DeliveryVector.DIRECT,
-    max_concurrent: int = 5,
+    max_concurrent: int,
     on_result: Callable[[AttackResult], Any] | None = None,
 ) -> ScanResult:
     """Run a complete scan: generate -> evade -> deliver -> score.
