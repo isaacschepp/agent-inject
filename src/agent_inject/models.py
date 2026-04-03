@@ -143,3 +143,4 @@ class Score:
     passed: bool
     value: float
     rationale: str = ""
+    details: dict[str, Any] = field(default_factory=lambda: dict[str, Any]())  # noqa: PLW0108
