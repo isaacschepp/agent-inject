@@ -17,7 +17,7 @@
 | src/agent\_inject/attacks/multimodal/\_\_init\_\_.py     |        0 |        0 |        0 |        0 |    100.00% |           |
 | src/agent\_inject/attacks/rag/\_\_init\_\_.py            |        0 |        0 |        0 |        0 |    100.00% |           |
 | src/agent\_inject/attacks/registry.py                    |       50 |        2 |       12 |        1 |     91.94% |     82-89 |
-| src/agent\_inject/cli.py                                 |       58 |        8 |       10 |        3 |     83.82% |66-69, 73-76, 105-106 |
+| src/agent\_inject/cli.py                                 |       57 |        8 |       10 |        3 |     83.58% |63-66, 70-73, 102-103 |
 | src/agent\_inject/config.py                              |       19 |        0 |        0 |        0 |    100.00% |           |
 | src/agent\_inject/engine.py                              |       54 |        0 |       14 |        0 |    100.00% |           |
 | src/agent\_inject/evasion/\_\_init\_\_.py                |        2 |        0 |        0 |        0 |    100.00% |           |
@@ -36,7 +36,7 @@
 | src/agent\_inject/strategies/\_\_init\_\_.py             |        2 |        0 |        0 |        0 |    100.00% |           |
 | src/agent\_inject/strategies/base.py                     |       48 |        3 |        2 |        0 |     90.00% |     97-99 |
 | src/agent\_inject/strategies/crescendo.py                |       49 |        0 |        8 |        0 |    100.00% |           |
-| **TOTAL**                                                |  **845** |   **19** |  **152** |   **10** | **96.69%** |           |
+| **TOTAL**                                                |  **844** |   **19** |  **152** |   **10** | **96.69%** |           |
 
 
 ## Setup coverage badge
