@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from agent_inject.strategies.base import ConversationState, ConversationTurn, MultiTurnResult
+from agent_inject.strategies.base import ConversationState, ConversationTurn, MultiTurnResult, MultiTurnScanResult
 
 
 class TestConversationTurn:
@@ -97,3 +97,20 @@ class TestMultiTurnResult:
         assert result.total_turns == 5
         assert result.success is True
         assert result.error is None
+
+
+
+class TestMultiTurnScanResult:
+    def test_asr_with_objectives(self) -> None:
+        result = MultiTurnScanResult(
+            total_objectives=4,
+            successful_attacks=3,
+        )
+        assert result.asr == 0.75
+
+    def test_asr_zero_objectives(self) -> None:
+        result = MultiTurnScanResult(
+            total_objectives=0,
+            successful_attacks=0,
+        )
+        assert result.asr == 0.0
