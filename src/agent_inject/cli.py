@@ -34,8 +34,20 @@ def scan(
     output: Annotated[Path, typer.Option("--output", "-o", help="Output JSON file")] = Path("results.json"),
     max_concurrent: Annotated[int, typer.Option("--concurrency", help="Max parallel sends")] = 5,
     verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Verbose output")] = False,
+    env_file: Annotated[
+        Path | None,
+        typer.Option("--env-file", help="Path to .env file (not loaded from CWD by default)"),
+    ] = None,
 ) -> None:
     """Run attack suite against target agent."""
+    from agent_inject.config import warn_if_cwd_dotenv
+
+    if env_file is not None and not env_file.is_file():
+        console.print(f"[red]Error:[/red] env file not found: {env_file}")
+        raise typer.Exit(code=1)
+
+    warn_if_cwd_dotenv(env_file_provided=env_file is not None)
+
     try:
         asyncio.run(_async_scan(target, goal, attacks, output, max_concurrent, verbose))
     except KeyError as e:

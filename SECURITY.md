@@ -8,16 +8,17 @@ agent-inject is an offensive testing framework for AI agent systems. It runs loc
 
 **Trust model:**
 
-- **Trusted inputs**: Configuration via environment variables or `.env` file, YAML attack payload files, CLI arguments (target URL, goal, attack names). Treat these the same way you would treat running a Python script locally.
-- **Untrusted inputs**: HTTP responses from target agents. These are parsed by adapters and passed to scorers for pattern matching. Untrusted data should never trigger code execution, file access, or network activity beyond the configured target.
+- **Trusted inputs**: Configuration via environment variables (`AGENT_INJECT_` prefix), CLI arguments, explicitly specified config files (`--env-file`, `--config`), and the user's XDG config directory (`~/.config/agent-inject/`). YAML attack payload files loaded from operator-specified paths. Treat these the same way you would treat running a Python script locally.
+- **Untrusted inputs**: HTTP responses from target agents. These are parsed by adapters and passed to scorers for pattern matching. Untrusted data should never trigger code execution, file access, or network activity beyond the configured target. **The current working directory** and any files in it (including `.env`) are **not** automatically trusted -- security tools must not implicitly load config from directories they operate on (see [CWE-426](https://cwe.mitre.org/data/definitions/426.html)).
 
 **Key security properties:**
 
 - API keys are stored as `SecretStr` (pydantic) to prevent accidental logging or repr exposure
 - YAML payload loading uses `yaml.safe_load()` exclusively -- no arbitrary code execution
-- All domain objects use frozen dataclasses (immutable after creation)
+- All domain objects use frozen dataclasses (immutable after creation), including configuration
 - HTTP client timeouts are enforced (default 30 seconds)
 - Concurrency is bounded by a configurable semaphore (1-50)
+- CWD `.env` files are **not** loaded by default -- pass `--env-file` explicitly (CWE-426)
 
 ## Scope
 
@@ -33,6 +34,7 @@ Vulnerabilities in agent-inject's own code, dependencies, and supply chain:
 - Supply chain attacks on agent-inject's PyPI package, GitHub Actions, or dependencies
 - Bypasses of intended scope restrictions (attacking targets the operator did not configure)
 - Vulnerabilities in CLI argument parsing, configuration validation, or output serialization
+- Configuration injection via CWD-relative file loading or untrusted search paths (CWE-426)
 - Algorithmic complexity DoS (crafted input causing hang or crash with modest input size)
 
 ### Out of Scope
@@ -150,8 +152,9 @@ This safe harbor covers testing **agent-inject the tool**. It does not authorize
 ## Secrets Management
 
 - **Application secrets**: API keys are loaded from environment variables
-  (`AGENT_INJECT_` prefix) or `.env` files, never hardcoded. Stored in code as
-  pydantic `SecretStr` to prevent accidental logging or repr exposure.
+  (`AGENT_INJECT_` prefix) or explicitly specified `.env` files (`--env-file`),
+  never hardcoded. CWD `.env` files are not auto-loaded (CWE-426). Stored in
+  code as pydantic `SecretStr` to prevent accidental logging or repr exposure.
 - **CI/CD secrets**: Managed via GitHub Actions encrypted secrets. PyPI
   publishing uses OIDC trusted publishing (no long-lived API tokens).
 - **Detection**: GitHub secret scanning and push protection are enabled.
