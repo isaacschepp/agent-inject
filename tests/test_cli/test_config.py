@@ -223,6 +223,27 @@ class TestEnvFileSecurity:
         assert dumped["secrets"]["openai_api_key"] != "sk-test-key-12345"
 
 
+class TestDotEnvInterpolation:
+    """Dotenv interpolation must be disabled to prevent env var exfiltration."""
+
+    def test_interpolation_disabled(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """${VAR} in .env should be treated as literal, not expanded."""
+        monkeypatch.setenv("HOME", "/real/home")
+        dotenv = tmp_path / "test.env"
+        dotenv.write_text("AGENT_INJECT_TARGET__URL=https://example.com/${HOME}\n")
+        cfg = AgentInjectConfig(_env_file=dotenv)  # pyright: ignore[reportCallIssue]
+        assert "${HOME}" in cfg.target.url
+        assert "/real/home" not in cfg.target.url
+
+    def test_no_env_var_leakage(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Sensitive env vars must not leak through .env interpolation."""
+        monkeypatch.setenv("SECRET_TOKEN", "super-secret-123")
+        dotenv = tmp_path / "test.env"
+        dotenv.write_text("AGENT_INJECT_TARGET__URL=https://example.com/${SECRET_TOKEN}\n")
+        cfg = AgentInjectConfig(_env_file=dotenv)  # pyright: ignore[reportCallIssue]
+        assert "super-secret-123" not in cfg.target.url
+
+
 class TestTomlConfig:
     """TOML config file loading via settings_customise_sources."""
 
