@@ -43,6 +43,9 @@ class TargetConfig(BaseModel, frozen=True):
     url: str = ""
     adapter: Literal["rest"] = "rest"
     timeout_seconds: float = Field(default=30.0, gt=0)
+    message_field: str = "message"
+    response_field: str = "response"
+    headers: dict[str, str] = Field(default_factory=dict)
 
     @field_validator("url")
     @classmethod
@@ -58,6 +61,9 @@ class EngineConfig(BaseModel, frozen=True):
 
     max_concurrent: int = Field(default=5, ge=1, le=50)
     max_turns: int = Field(default=15, ge=1, le=100)
+    max_backtracks: int = Field(default=5, ge=0, le=100)
+    max_retries: int = Field(default=3, ge=0, le=10)
+    retry_backoff_seconds: float = Field(default=2.0, ge=0.0)
 
 
 class OutputConfig(BaseModel, frozen=True):
@@ -66,6 +72,7 @@ class OutputConfig(BaseModel, frozen=True):
     dir: Path = Path("./results")
     format: Literal["json"] = "json"
     verbose: bool = False
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "WARNING"
 
 
 class SecretsConfig(BaseModel, frozen=True):

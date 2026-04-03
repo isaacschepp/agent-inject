@@ -78,6 +78,15 @@ def scan(
 
     config = AgentInjectConfig(**overrides, _env_file=env_file)  # pyright: ignore[reportCallIssue]
 
+    # Configure logging from config.
+    import logging as _logging
+
+    _logging.basicConfig(
+        level=getattr(_logging, config.output.log_level),
+        format="%(levelname)s: %(message)s",
+        force=True,
+    )
+
     try:
         asyncio.run(_async_scan(config, goal, attacks, output))
     except KeyError as e:
@@ -126,6 +135,8 @@ async def _async_scan(
             scorers=scorers,
             goal=goal,
             max_concurrent=config.engine.max_concurrent,
+            max_retries=config.engine.max_retries,
+            retry_backoff_seconds=config.engine.retry_backoff_seconds,
         )
 
     output.write_text(json.dumps(dataclasses.asdict(result), indent=2, default=str))  # noqa: ASYNC240
@@ -147,7 +158,13 @@ def _create_adapter(config: AgentInjectConfig) -> BaseAdapter:
     from agent_inject.harness.adapters.rest import RestAdapter
 
     if config.target.adapter == "rest":
-        return RestAdapter(config.target.url, timeout=config.target.timeout_seconds)
+        return RestAdapter(
+            config.target.url,
+            timeout=config.target.timeout_seconds,
+            message_field=config.target.message_field,
+            response_field=config.target.response_field,
+            headers=dict(config.target.headers),
+        )
     # Should be unreachable thanks to Literal constraint; guard for direct API callers.
     msg = f"Unknown adapter: {config.target.adapter!r}"  # pragma: no cover
     raise ValueError(msg)  # pragma: no cover

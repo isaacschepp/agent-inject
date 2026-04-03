@@ -79,7 +79,7 @@ class CrescendoStrategy(BaseMultiTurnStrategy):
         adapter: BaseAdapter,
         objective: str,
         *,
-        max_turns: int = 10,
+        max_turns: int = 15,
         max_backtracks: int = 5,
         **kwargs: Any,
     ) -> MultiTurnResult:

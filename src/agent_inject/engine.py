@@ -44,6 +44,8 @@ async def run_scan(
     evasion_chains: list[TransformChain] | None = None,
     delivery_vector: DeliveryVector = DeliveryVector.DIRECT,
     max_concurrent: int,
+    max_retries: int = 3,
+    retry_backoff_seconds: float = 2.0,
     on_result: Callable[[AttackResult], Any] | None = None,
 ) -> ScanResult:
     """Run a complete scan: generate -> evade -> deliver -> score.
@@ -56,6 +58,8 @@ async def run_scan(
         evasion_chains: Optional evasion transforms to apply (Tier 4 fan-out).
         delivery_vector: How payloads are delivered.
         max_concurrent: Maximum concurrent payload deliveries.
+        max_retries: Maximum retry attempts per payload on transient failure.
+        retry_backoff_seconds: Base delay (seconds) between retries (exponential backoff).
         on_result: Optional callback invoked after each result is scored.
 
     Returns:
@@ -87,7 +91,7 @@ async def run_scan(
         _logger.info("After evasion fan-out: %d payloads", len(instances))
 
     # 4. Deliver concurrently
-    results = await _send_all(adapter, instances, max_concurrent)
+    results = await _send_all(adapter, instances, max_concurrent, max_retries, retry_backoff_seconds)
 
     # 5. Score
     scored: list[tuple[AttackResult, tuple[Score, ...]]] = []
@@ -125,17 +129,33 @@ async def _send_all(
     adapter: BaseAdapter,
     instances: list[PayloadInstance],
     max_concurrent: int,
+    max_retries: int,
+    retry_backoff_seconds: float,
 ) -> list[AttackResult]:
-    """Send all payloads concurrently with bounded parallelism."""
+    """Send all payloads concurrently with bounded parallelism and retry."""
     sem = asyncio.Semaphore(max_concurrent)
 
     async def _send_one(instance: PayloadInstance) -> AttackResult:
         async with sem:
-            try:
-                return await adapter.send_payload(instance)
-            except Exception as e:  # noqa: BLE001 — adapter-agnostic; can't predict exception types
-                _logger.warning("Send failed for %s: %s", instance.payload.id, e)
-                return AttackResult(payload_instance=instance, error=str(e))
+            last_error: str = ""
+            for attempt in range(max_retries + 1):
+                try:
+                    return await adapter.send_payload(instance)
+                except Exception as e:  # noqa: BLE001 — adapter-agnostic; can't predict exception types
+                    last_error = str(e)
+                    if attempt < max_retries:
+                        delay = retry_backoff_seconds * (2**attempt)
+                        _logger.info(
+                            "Retry %d/%d for %s after %.1fs: %s",
+                            attempt + 1,
+                            max_retries,
+                            instance.payload.id,
+                            delay,
+                            e,
+                        )
+                        await asyncio.sleep(delay)
+            _logger.warning("Send failed for %s after %d retries: %s", instance.payload.id, max_retries, last_error)
+            return AttackResult(payload_instance=instance, error=last_error)
 
     async with asyncio.TaskGroup() as tg:
         tasks = [tg.create_task(_send_one(inst)) for inst in instances]

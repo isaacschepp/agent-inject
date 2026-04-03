@@ -14,15 +14,22 @@
 # url = "https://your-agent.example.com/chat"
 # adapter = "rest"
 # timeout_seconds = 30.0
+# message_field = "message"
+# response_field = "response"
+# headers = {}
 
 [engine]
 # max_concurrent = 5
 # max_turns = 15
+# max_backtracks = 5
+# max_retries = 3
+# retry_backoff_seconds = 2.0
 
 [output]
 # dir = "./results"
 # format = "json"
 # verbose = false
+# log_level = "WARNING"
 
 [scoring]
 # canary_match_threshold = 0.8

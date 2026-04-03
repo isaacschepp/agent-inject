@@ -174,10 +174,45 @@ class TestRunScan:
             scorers=[],
             goal="test",
             max_concurrent=5,
+            max_retries=0,
         )
         assert result.total_payloads == 1
         assert result.results[0].error is not None
         assert "target down" in result.results[0].error
+
+    async def test_retry_on_transient_failure(self) -> None:
+        call_count = 0
+
+        class FlakeyAdapter(BaseAdapter):
+            name = "flakey"
+
+            @override
+            async def send_payload(
+                self,
+                payload: PayloadInstance,
+                context: dict[str, Any] | None = None,
+            ) -> AttackResult:
+                nonlocal call_count
+                call_count += 1
+                if call_count <= 2:
+                    msg = "transient error"
+                    raise ConnectionError(msg)
+                return AttackResult(payload_instance=payload, raw_output="ok")
+
+        adapter = FlakeyAdapter()
+        result = await run_scan(
+            adapter,
+            attacks=[SimpleAttack()],
+            scorers=[],
+            goal="test",
+            max_concurrent=5,
+            max_retries=3,
+            retry_backoff_seconds=0.01,
+        )
+        assert result.total_payloads == 1
+        assert result.results[0].error is None
+        assert result.results[0].raw_output == "ok"
+        assert call_count == 3  # 2 failures + 1 success
 
     async def test_health_check_failure_aborts(self) -> None:
         class UnhealthyAdapter(BaseAdapter):
