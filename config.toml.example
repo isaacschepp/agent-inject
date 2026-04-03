@@ -1,0 +1,35 @@
+# agent-inject configuration (TOML format)
+#
+# Place this file at:
+#   Linux:   ~/.config/agent-inject/config.toml
+#   macOS:   ~/Library/Application Support/agent-inject/config.toml
+#   Windows: %APPDATA%/agent-inject/config.toml
+#
+# Or specify explicitly: agent-inject scan --config /path/to/config.toml
+#
+# Priority: CLI flags > env vars > .env file > this TOML > defaults
+# TOML keys use field names directly (no AGENT_INJECT_ prefix).
+
+# === Target Configuration ===
+# target_url = "https://your-agent.example.com/chat"
+# target_adapter = "rest"
+# timeout_seconds = 30.0
+
+# === Engine Configuration ===
+# max_concurrent = 5
+# max_turns = 15
+
+# === Output ===
+# output_format = "json"
+# verbose = false
+
+# === Scoring ===
+# canary_match_threshold = 0.8
+
+# === LLM Judge (requires openai_api_key) ===
+# use_llm_judge = false
+# judge_model = "gpt-4o-mini"
+
+# === API Keys (prefer env vars or a secrets manager for these) ===
+# openai_api_key = "sk-..."
+# anthropic_api_key = "sk-ant-..."

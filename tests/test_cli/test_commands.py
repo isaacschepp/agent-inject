@@ -52,6 +52,14 @@ class TestScan:
         assert result.exit_code == 1
         assert "env file not found" in _strip(result.stdout)
 
+    def test_config_file_not_found(self) -> None:
+        result = runner.invoke(
+            app,
+            ["scan", "https://example.com", "--goal", "test", "--config", "/nonexistent/config.toml"],
+        )
+        assert result.exit_code == 1
+        assert "config file not found" in _strip(result.stdout)
+
     def test_no_attacks_empty_registry(self) -> None:
         """Cover the 'no attacks registered' branch in _async_scan."""
         with patch("agent_inject.attacks.registry.get_all_attacks", return_value={}):
