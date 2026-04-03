@@ -99,7 +99,6 @@ class TestMultiTurnResult:
         assert result.error is None
 
 
-
 class TestMultiTurnScanResult:
     def test_asr_with_objectives(self) -> None:
         result = MultiTurnScanResult(

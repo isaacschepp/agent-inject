@@ -83,9 +83,12 @@ class TestScan:
                 result = runner.invoke(
                     app,
                     [
-                        "scan", "https://example.com",
-                        "--goal", "test",
-                        "--attack", "_verbose_test",
+                        "scan",
+                        "https://example.com",
+                        "--goal",
+                        "test",
+                        "--attack",
+                        "_verbose_test",
                         "--verbose",
                     ],
                 )
