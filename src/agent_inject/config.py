@@ -12,10 +12,14 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Literal, Self, override
+from typing import TYPE_CHECKING, Literal, Self, override
 
 from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict, TomlConfigSettingsSource
+from pydantic_settings.sources.providers.dotenv import DotEnvSettingsSource as _DotEnvBase
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 _logger = logging.getLogger(__name__)
 
@@ -30,6 +34,27 @@ def set_toml_override(path: Path | None) -> None:
     """Override the default TOML config file path (``--config`` flag)."""
     global _toml_override
     _toml_override = path
+
+
+class _SafeDotEnvSource(_DotEnvBase):
+    """``DotEnvSettingsSource`` with interpolation disabled.
+
+    python-dotenv expands ``${VAR}`` references against the real
+    environment by default, enabling ``.env`` files to exfiltrate
+    sensitive variables.  This subclass passes ``interpolate=False``
+    so values are treated as literals.
+    """
+
+    def _read_env_file(self, file_path: Path) -> Mapping[str, str | None]:  # pyright: ignore[reportImplicitOverride]
+        from dotenv import dotenv_values
+        from pydantic_settings.sources.utils import parse_env_vars
+
+        file_vars: dict[str, str | None] = dotenv_values(
+            file_path,
+            encoding=self.env_file_encoding or "utf-8",
+            interpolate=False,
+        )
+        return parse_env_vars(file_vars, self.case_sensitive, self.env_ignore_empty, self.env_parse_none_str)
 
 
 # ---------------------------------------------------------------------------
@@ -174,10 +199,13 @@ class AgentInjectConfig(BaseSettings):
         """Define config source priority: init > env > dotenv > TOML > defaults."""
         from agent_inject.paths import config_file
 
+        # Replace the default dotenv source with our safe version (interpolation disabled).
+        safe_dotenv = _SafeDotEnvSource(settings_cls, env_file=dotenv_settings.env_file)  # type: ignore[attr-defined]
+
         sources: list[PydanticBaseSettingsSource] = [
             init_settings,  # 1. CLI args / constructor kwargs
             env_settings,  # 2. AGENT_INJECT_* env vars
-            dotenv_settings,  # 3. Explicit .env file (--env-file)
+            safe_dotenv,  # 3. Explicit .env file (--env-file), interpolation disabled
         ]
 
         toml_path = _toml_override or config_file()
