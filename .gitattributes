@@ -1,0 +1,15 @@
+# Normalize all text files to LF in the repo
+* text=auto
+
+# Force LF for files that must be consistent across platforms
+*.py text eol=lf
+*.pyi text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+*.cfg text eol=lf
+*.ini text eol=lf
+*.sh text eol=lf
