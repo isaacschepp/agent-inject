@@ -86,7 +86,7 @@ requires-dist = [
     { name = "agent-inject", extras = ["anthropic"], marker = "extra == 'all-providers'" },
     { name = "agent-inject", extras = ["langchain"], marker = "extra == 'all-providers'" },
     { name = "agent-inject", extras = ["openai"], marker = "extra == 'all-providers'" },
-    { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=0.47" },
+    { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=0.77,<1" },
     { name = "httpx", specifier = ">=0.27,<1" },
     { name = "langchain", marker = "extra == 'langchain'", specifier = ">=1.2,<2" },
     { name = "langchain-core", marker = "extra == 'langchain-core'", specifier = ">=1.0,<2" },
