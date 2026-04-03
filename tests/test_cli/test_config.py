@@ -456,6 +456,21 @@ class TestSerialization:
         assert "target" in schema["properties"]
         assert "engine" in schema["properties"]
 
+    def test_json_schema_has_descriptions(self) -> None:
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            schema = AgentInjectConfig.model_json_schema()
+        target_props = schema["$defs"]["TargetConfig"]["properties"]
+        assert "description" in target_props["url"]
+        assert "description" in target_props["timeout_seconds"]
+        engine_props = schema["$defs"]["EngineConfig"]["properties"]
+        assert "description" in engine_props["max_concurrent"]
+        judge_props = schema["$defs"]["JudgeConfig"]["properties"]
+        assert "description" in judge_props["model"]
+        assert "examples" in judge_props["model"]
+
     def test_path_serialization(self) -> None:
         cfg = AgentInjectConfig()
         dumped = cfg.model_dump(mode="json")

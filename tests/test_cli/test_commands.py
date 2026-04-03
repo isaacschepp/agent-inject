@@ -291,6 +291,17 @@ class TestListAdapters:
         assert "rest" in _strip(result.stdout)
 
 
+class TestConfigSchema:
+    def test_outputs_valid_json(self) -> None:
+        import json
+
+        result = runner.invoke(app, ["config-schema"], color=False)
+        assert result.exit_code == 0
+        schema = json.loads(result.stdout)
+        assert "properties" in schema
+        assert "target" in schema["properties"]
+
+
 class TestVersion:
     def test_output(self) -> None:
         result = runner.invoke(app, ["version"])
