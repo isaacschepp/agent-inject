@@ -65,6 +65,7 @@ class TestRunScan:
             attacks=[SimpleAttack()],
             scorers=[AlwaysPassScorer()],
             goal="test goal",
+            max_concurrent=5,
         )
         assert isinstance(result, ScanResult)
         assert result.total_payloads == 1
@@ -78,6 +79,7 @@ class TestRunScan:
             attacks=[SimpleAttack()],
             scorers=[NeverPassScorer()],
             goal="test",
+            max_concurrent=5,
             evasion_chains=[compose(Base64Encode())],
         )
         # 1 original + 1 base64 variant = 2
@@ -90,6 +92,7 @@ class TestRunScan:
             attacks=[SimpleAttack()],
             scorers=[AlwaysPassScorer(), NeverPassScorer()],
             goal="test",
+            max_concurrent=5,
         )
         assert result.total_payloads == 1
         # At least one scorer passed -> attack_success
@@ -104,6 +107,7 @@ class TestRunScan:
             attacks=[SimpleAttack()],
             scorers=[],
             goal="test",
+            max_concurrent=5,
         )
         assert result.total_payloads == 1
         assert result.successful_attacks == 0
@@ -116,6 +120,7 @@ class TestRunScan:
             attacks=[SimpleAttack()],
             scorers=[AlwaysPassScorer()],
             goal="test",
+            max_concurrent=5,
             on_result=callback_results.append,
         )
         assert len(callback_results) == 1
@@ -132,6 +137,7 @@ class TestRunScan:
             attacks=[SimpleAttack(), AnotherAttack()],
             scorers=[NeverPassScorer()],
             goal="test",
+            max_concurrent=5,
         )
         # 1 from SimpleAttack + 2 from AnotherAttack = 3
         assert result.total_payloads == 3
@@ -143,6 +149,7 @@ class TestRunScan:
             attacks=[SimpleAttack()],
             scorers=[],
             goal="test",
+            max_concurrent=5,
             delivery_vector=DeliveryVector.TOOL_RETURN,
         )
         assert result.results[0].payload_instance.delivery_vector == DeliveryVector.TOOL_RETURN
@@ -166,6 +173,7 @@ class TestRunScan:
             attacks=[SimpleAttack()],
             scorers=[],
             goal="test",
+            max_concurrent=5,
         )
         assert result.total_payloads == 1
         assert result.results[0].error is not None
@@ -193,6 +201,7 @@ class TestRunScan:
             attacks=[SimpleAttack()],
             scorers=[],
             goal="test",
+            max_concurrent=5,
         )
         assert result.total_payloads == 0
         assert result.results == ()
