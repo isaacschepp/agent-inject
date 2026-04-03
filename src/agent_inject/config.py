@@ -82,12 +82,24 @@ class SecretsConfig(BaseModel, frozen=True):
     anthropic_api_key: SecretStr = SecretStr("")
 
 
+class JudgeConfig(BaseModel, frozen=True):
+    """LLM-as-judge configuration.
+
+    Uses ``provider:model`` format (e.g. ``openai:gpt-4o-mini``,
+    ``anthropic:claude-3-haiku-20240307``).
+    """
+
+    enabled: bool = False
+    model: str = Field(default="openai:gpt-4o-mini", min_length=1)
+    temperature: float = Field(default=0.0, ge=0.0, le=2.0)
+    max_tokens: int = Field(default=1024, ge=1)
+
+
 class ScoringConfig(BaseModel, frozen=True):
     """Scoring and evaluation settings."""
 
     canary_match_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
-    use_llm_judge: bool = False
-    judge_model: str = Field(default="gpt-4o-mini", min_length=1)
+    judge: JudgeConfig = JudgeConfig()
 
 
 # ---------------------------------------------------------------------------
@@ -111,7 +123,7 @@ class AgentInjectConfig(BaseSettings):
 
         AGENT_INJECT_TARGET__URL=https://example.com
         AGENT_INJECT_ENGINE__MAX_CONCURRENT=10
-        AGENT_INJECT_SCORING__USE_LLM_JUDGE=true
+        AGENT_INJECT_SCORING__JUDGE__ENABLED=true
     """
 
     model_config = SettingsConfigDict(
@@ -157,11 +169,15 @@ class AgentInjectConfig(BaseSettings):
 
     @model_validator(mode="after")
     def _require_api_key_for_judge(self) -> Self:
-        if self.scoring.use_llm_judge and not self.secrets.openai_api_key.get_secret_value():
-            msg = (
-                "openai_api_key required when use_llm_judge=True. "
-                "Set AGENT_INJECT_SECRETS__OPENAI_API_KEY or pass --openai-api-key."
-            )
+        judge = self.scoring.judge
+        if not judge.enabled:
+            return self
+        provider = judge.model.split(":")[0] if ":" in judge.model else "openai"
+        if provider == "openai" and not self.secrets.openai_api_key.get_secret_value():
+            msg = "openai_api_key required for OpenAI judge. Set AGENT_INJECT_SECRETS__OPENAI_API_KEY."
+            raise ValueError(msg)
+        if provider == "anthropic" and not self.secrets.anthropic_api_key.get_secret_value():
+            msg = "anthropic_api_key required for Anthropic judge. Set AGENT_INJECT_SECRETS__ANTHROPIC_API_KEY."
             raise ValueError(msg)
         return self
 
