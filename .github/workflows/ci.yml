@@ -128,7 +128,7 @@ jobs:
           enable-cache: false
       - name: Audit dependencies
         run: |
-          uv export --all-extras --format requirements-txt --no-header --no-annotate --no-editable > /tmp/requirements.txt
+          uv export --all-extras --format requirements-txt --no-header --no-annotate --no-editable --no-hashes > /tmp/requirements.txt
           uvx pip-audit -r /tmp/requirements.txt
 
   coverage:
