@@ -2,42 +2,42 @@
 
 [Full report](https://htmlpreview.github.io/?https://github.com/isaacschepp/agent-inject/blob/python-coverage-comment-action-data/htmlcov/index.html)
 
-| Name                                                     |    Stmts |     Miss |   Branch |   BrPart |      Cover |   Missing |
-|--------------------------------------------------------- | -------: | -------: | -------: | -------: | ---------: | --------: |
-| src/agent\_inject/\_\_init\_\_.py                        |        2 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/attacks/\_\_init\_\_.py                |        3 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/attacks/base.py                        |       36 |        0 |        2 |        0 |    100.00% |           |
-| src/agent\_inject/attacks/cross\_agent/\_\_init\_\_.py   |        0 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/attacks/deputies/\_\_init\_\_.py       |        0 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/attacks/direct/\_\_init\_\_.py         |        0 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/attacks/function\_call/\_\_init\_\_.py |        0 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/attacks/indirect/\_\_init\_\_.py       |        0 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/attacks/loader.py                      |       73 |        2 |       18 |        1 |     96.70% |131-\>128, 133-134 |
-| src/agent\_inject/attacks/mcp/\_\_init\_\_.py            |        0 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/attacks/multimodal/\_\_init\_\_.py     |        0 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/attacks/rag/\_\_init\_\_.py            |        0 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/attacks/registry.py                    |       50 |        2 |       12 |        1 |     91.94% |     82-89 |
-| src/agent\_inject/cli.py                                 |       62 |       10 |       12 |        4 |     81.08% |43-44, 75-78, 82-85, 114-115 |
-| src/agent\_inject/config.py                              |       34 |        2 |        4 |        0 |     94.74% |     74-75 |
-| src/agent\_inject/engine.py                              |       54 |        0 |       14 |        0 |    100.00% |           |
-| src/agent\_inject/evasion/\_\_init\_\_.py                |        2 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/evasion/transforms.py                  |      110 |        1 |       12 |        0 |     99.18% |        28 |
-| src/agent\_inject/exfiltration/\_\_init\_\_.py           |        0 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/harness/\_\_init\_\_.py                |        2 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/harness/adapters/\_\_init\_\_.py       |        2 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/harness/adapters/rest.py               |       40 |        0 |        2 |        0 |    100.00% |           |
-| src/agent\_inject/harness/base.py                        |       15 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/jailbreaks/\_\_init\_\_.py             |        0 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/models.py                              |       86 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/paths.py                               |       12 |       12 |        0 |        0 |      0.00% |     10-44 |
-| src/agent\_inject/persistence/\_\_init\_\_.py            |        0 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/reports/\_\_init\_\_.py                |        0 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/scorers/\_\_init\_\_.py                |        2 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/scorers/base.py                        |      192 |        3 |       72 |        5 |     96.97% |118-\>120, 224, 227-\>226, 271, 420 |
-| src/agent\_inject/strategies/\_\_init\_\_.py             |        2 |        0 |        0 |        0 |    100.00% |           |
-| src/agent\_inject/strategies/base.py                     |       48 |        3 |        2 |        0 |     90.00% |     97-99 |
-| src/agent\_inject/strategies/crescendo.py                |       49 |        0 |        8 |        0 |    100.00% |           |
-| **TOTAL**                                                |  **876** |   **35** |  **158** |   **11** | **95.16%** |           |
+| Name                                                     |    Stmts |     Miss |   Branch |   BrPart |       Cover |   Missing |
+|--------------------------------------------------------- | -------: | -------: | -------: | -------: | ----------: | --------: |
+| src/agent\_inject/\_\_init\_\_.py                        |        2 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/attacks/\_\_init\_\_.py                |        3 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/attacks/base.py                        |       36 |        0 |        2 |        0 |     100.00% |           |
+| src/agent\_inject/attacks/cross\_agent/\_\_init\_\_.py   |        0 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/attacks/deputies/\_\_init\_\_.py       |        0 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/attacks/direct/\_\_init\_\_.py         |        0 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/attacks/function\_call/\_\_init\_\_.py |        0 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/attacks/indirect/\_\_init\_\_.py       |        0 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/attacks/loader.py                      |       73 |        0 |       18 |        0 |     100.00% |           |
+| src/agent\_inject/attacks/mcp/\_\_init\_\_.py            |        0 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/attacks/multimodal/\_\_init\_\_.py     |        0 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/attacks/rag/\_\_init\_\_.py            |        0 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/attacks/registry.py                    |       50 |        0 |       12 |        0 |     100.00% |           |
+| src/agent\_inject/cli.py                                 |       62 |        0 |       12 |        0 |     100.00% |           |
+| src/agent\_inject/config.py                              |       34 |        0 |        4 |        0 |     100.00% |           |
+| src/agent\_inject/engine.py                              |       54 |        0 |       14 |        0 |     100.00% |           |
+| src/agent\_inject/evasion/\_\_init\_\_.py                |        2 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/evasion/transforms.py                  |      110 |        0 |       12 |        0 |     100.00% |           |
+| src/agent\_inject/exfiltration/\_\_init\_\_.py           |        0 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/harness/\_\_init\_\_.py                |        2 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/harness/adapters/\_\_init\_\_.py       |        2 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/harness/adapters/rest.py               |       40 |        0 |        2 |        0 |     100.00% |           |
+| src/agent\_inject/harness/base.py                        |       15 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/jailbreaks/\_\_init\_\_.py             |        0 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/models.py                              |       86 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/paths.py                               |       12 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/persistence/\_\_init\_\_.py            |        0 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/reports/\_\_init\_\_.py                |        0 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/scorers/\_\_init\_\_.py                |        2 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/scorers/base.py                        |      192 |        0 |       72 |        0 |     100.00% |           |
+| src/agent\_inject/strategies/\_\_init\_\_.py             |        2 |        0 |        0 |        0 |     100.00% |           |
+| src/agent\_inject/strategies/base.py                     |       48 |        0 |        2 |        0 |     100.00% |           |
+| src/agent\_inject/strategies/crescendo.py                |       49 |        0 |        8 |        0 |     100.00% |           |
+| **TOTAL**                                                |  **876** |    **0** |  **158** |    **0** | **100.00%** |           |
 
 
 ## Setup coverage badge
