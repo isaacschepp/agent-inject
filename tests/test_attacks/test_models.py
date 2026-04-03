@@ -49,7 +49,7 @@ class TestAttackResult:
         result = AttackResult(payload_instance=sample_payload_instance)
         assert result.attack_success is False
         assert result.utility_preserved is True
-        assert result.tool_calls == []
+        assert result.tool_calls == ()
 
     def test_with_tool_calls(self, sample_attack_result: AttackResult) -> None:
         assert len(sample_attack_result.tool_calls) == 1

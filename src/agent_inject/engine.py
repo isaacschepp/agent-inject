@@ -8,7 +8,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any
 
 from agent_inject.evasion.transforms import TransformChain, apply_evasion_chains
@@ -102,7 +102,7 @@ async def run_scan(
             score = await scorer.score(result)
             result_scores.append(score)
         if any(s.passed for s in result_scores):
-            result.attack_success = True
+            result = replace(result, attack_success=True)  # noqa: PLW2901 — intentional: frozen dataclass requires replace()
             successful += 1
         scored.append((result, tuple(result_scores)))
         if on_result:
