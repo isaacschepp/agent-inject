@@ -127,7 +127,7 @@ class TestScan:
         mock_result.total_payloads = 0
         mock_result.duration_seconds = 0.1
 
-        monkeypatch.setenv("AGENT_INJECT_MAX_CONCURRENT", "42")
+        monkeypatch.setenv("AGENT_INJECT_ENGINE__MAX_CONCURRENT", "42")
 
         try:
             with (
@@ -161,7 +161,7 @@ class TestScan:
 
         fake_result = ScanResult(results=(), scores=(), total_payloads=0, successful_attacks=0, duration_seconds=0.1)
 
-        monkeypatch.setenv("AGENT_INJECT_MAX_CONCURRENT", "42")
+        monkeypatch.setenv("AGENT_INJECT_ENGINE__MAX_CONCURRENT", "42")
 
         try:
             with (
@@ -223,7 +223,7 @@ class TestScan:
             assert result.exit_code == 0
             # Verify config passed to _create_adapter has the custom timeout
             passed_config = mock_factory.call_args.args[0]
-            assert passed_config.timeout_seconds == 60.0
+            assert passed_config.target.timeout_seconds == 60.0
         finally:
             _ATTACKS.pop("_timeout_test", None)
 
@@ -233,7 +233,7 @@ class TestFactories:
         from agent_inject.config import AgentInjectConfig
         from agent_inject.harness.adapters.rest import RestAdapter
 
-        config = AgentInjectConfig(target_url="https://example.com", timeout_seconds=60.0)
+        config = AgentInjectConfig(target={"url": "https://example.com", "timeout_seconds": 60.0})
         adapter = _create_adapter(config)
         assert isinstance(adapter, RestAdapter)
         assert adapter.timeout == 60.0
@@ -244,13 +244,13 @@ class TestFactories:
         from agent_inject.config import AgentInjectConfig
 
         with pytest.raises(ValidationError):
-            AgentInjectConfig(target_adapter="unknown")  # type: ignore[arg-type]
+            AgentInjectConfig(target={"adapter": "unknown"})
 
     def test_create_scorers_uses_config_threshold(self) -> None:
         from agent_inject.config import AgentInjectConfig
         from agent_inject.scorers.base import CanaryMatchScorer
 
-        config = AgentInjectConfig(canary_match_threshold=0.6)
+        config = AgentInjectConfig(scoring={"canary_match_threshold": 0.6})
         scorers = _create_scorers(config)
         canary_scorer = next(s for s in scorers if isinstance(s, CanaryMatchScorer))
         assert canary_scorer.threshold == 0.6

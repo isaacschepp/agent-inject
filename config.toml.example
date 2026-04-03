@@ -10,26 +10,26 @@
 # Priority: CLI flags > env vars > .env file > this TOML > defaults
 # TOML keys use field names directly (no AGENT_INJECT_ prefix).
 
-# === Target Configuration ===
-# target_url = "https://your-agent.example.com/chat"
-# target_adapter = "rest"
+[target]
+# url = "https://your-agent.example.com/chat"
+# adapter = "rest"
 # timeout_seconds = 30.0
 
-# === Engine Configuration ===
+[engine]
 # max_concurrent = 5
 # max_turns = 15
 
-# === Output ===
-# output_format = "json"
+[output]
+# dir = "./results"
+# format = "json"
 # verbose = false
 
-# === Scoring ===
+[scoring]
 # canary_match_threshold = 0.8
-
-# === LLM Judge (requires openai_api_key) ===
 # use_llm_judge = false
 # judge_model = "gpt-4o-mini"
 
-# === API Keys (prefer env vars or a secrets manager for these) ===
+[secrets]
+# Prefer env vars or a secrets manager for API keys.
 # openai_api_key = "sk-..."
 # anthropic_api_key = "sk-ant-..."
