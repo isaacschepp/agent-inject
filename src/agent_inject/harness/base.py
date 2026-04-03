@@ -26,7 +26,7 @@ class BaseAdapter(ABC):
     ) -> AttackResult:
         """Deliver a payload to the target agent and observe the result."""
 
-    async def observe_tool_calls(self, result: AttackResult) -> list[ToolCall]:
+    async def observe_tool_calls(self, result: AttackResult) -> tuple[ToolCall, ...]:
         """Extract tool calls from the attack result."""
         return result.tool_calls
 

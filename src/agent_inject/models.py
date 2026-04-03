@@ -102,7 +102,7 @@ class PayloadInstance:
     escape_config: EscapeConfig | None = None
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class ToolCall:
     """A tool/function call observed during agent execution."""
 
@@ -112,16 +112,24 @@ class ToolCall:
     error: str | None = None
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class AttackResult:
-    """Result of executing a single attack against a target agent."""
+    """Result of executing a single attack against a target agent.
+
+    Frozen after construction.  Use ``dataclasses.replace()`` to create a
+    modified copy (e.g. ``replace(result, attack_success=True)``).
+
+    Note: ``environment_diff`` and ``scorer_details`` are dicts whose
+    *contents* can still be mutated even though the attribute itself
+    cannot be reassigned.  This is a known compromise — see #490.
+    """
 
     payload_instance: PayloadInstance
     attack_success: bool = False
     utility_preserved: bool = True
     detection_evaded: bool = True
     raw_output: str = ""
-    tool_calls: list[ToolCall] = field(default_factory=lambda: list[ToolCall]())  # noqa: PLW0108 — pyright strict needs typed factory
+    tool_calls: tuple[ToolCall, ...] = ()
     environment_diff: dict[str, Any] = field(default_factory=lambda: dict[str, Any]())  # noqa: PLW0108
     scorer_details: dict[str, Any] = field(default_factory=lambda: dict[str, Any]())  # noqa: PLW0108
     error: str | None = None
