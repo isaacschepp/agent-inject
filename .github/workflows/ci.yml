@@ -130,7 +130,6 @@ jobs:
         run: |
           uv export --all-extras --format requirements-txt > /tmp/requirements.txt
           uvx pip-audit -r /tmp/requirements.txt
-        continue-on-error: true
 
   coverage:
     needs: [test]
@@ -160,10 +159,11 @@ jobs:
 
   check:
     if: always()
-    needs: [lint, typecheck, build, test, coverage]
+    needs: [lint, typecheck, build, test, coverage, security, dependency-review]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe # v1.2.2
         with:
           jobs: ${{ toJSON(needs) }}
+          allowed-skips: dependency-review
