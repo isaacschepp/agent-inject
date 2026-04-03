@@ -208,6 +208,23 @@ def list_adapters() -> None:
 
 
 @app.command()
+def config_schema() -> None:
+    """Export configuration JSON Schema."""
+    import json
+    import warnings
+
+    from pydantic.json_schema import PydanticJsonSchemaWarning
+
+    from agent_inject.config import AgentInjectConfig
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=PydanticJsonSchemaWarning)
+        schema = AgentInjectConfig.model_json_schema()
+    # Use print() instead of console.print() to avoid Rich escaping JSON control chars.
+    print(json.dumps(schema, indent=2))  # noqa: T201
+
+
+@app.command()
 def version() -> None:
     """Print version information."""
     from agent_inject import __version__

@@ -40,12 +40,16 @@ def set_toml_override(path: Path | None) -> None:
 class TargetConfig(BaseModel, frozen=True):
     """Target agent connection settings."""
 
-    url: str = ""
-    adapter: Literal["rest"] = "rest"
-    timeout_seconds: float = Field(default=30.0, gt=0)
-    message_field: str = "message"
-    response_field: str = "response"
-    headers: dict[str, str] = Field(default_factory=dict)
+    url: str = Field(
+        default="",
+        description="Target agent endpoint URL.",
+        examples=["https://agent.example.com/chat"],
+    )
+    adapter: Literal["rest"] = Field(default="rest", description="Adapter type for target communication.")
+    timeout_seconds: float = Field(default=30.0, gt=0, description="HTTP request timeout in seconds.")
+    message_field: str = Field(default="message", description="JSON field name for the payload in HTTP requests.")
+    response_field: str = Field(default="response", description="JSON field name to extract from HTTP responses.")
+    headers: dict[str, str] = Field(default_factory=dict, description="Custom HTTP headers for adapter requests.")
 
     @field_validator("url")
     @classmethod
@@ -59,27 +63,33 @@ class TargetConfig(BaseModel, frozen=True):
 class EngineConfig(BaseModel, frozen=True):
     """Scan engine behaviour."""
 
-    max_concurrent: int = Field(default=5, ge=1, le=50)
-    max_turns: int = Field(default=15, ge=1, le=100)
-    max_backtracks: int = Field(default=5, ge=0, le=100)
-    max_retries: int = Field(default=3, ge=0, le=10)
-    retry_backoff_seconds: float = Field(default=2.0, ge=0.0)
+    max_concurrent: int = Field(default=5, ge=1, le=50, description="Maximum concurrent payload deliveries.")
+    max_turns: int = Field(
+        default=15, ge=1, le=100, description="Maximum conversation turns for multi-turn strategies."
+    )
+    max_backtracks: int = Field(default=5, ge=0, le=100, description="Maximum backtrack retries on refusal.")
+    max_retries: int = Field(default=3, ge=0, le=10, description="Retry attempts per payload on transient failure.")
+    retry_backoff_seconds: float = Field(
+        default=2.0, ge=0.0, description="Base delay in seconds between retries (exponential backoff)."
+    )
 
 
 class OutputConfig(BaseModel, frozen=True):
     """Output and logging settings."""
 
-    dir: Path = Path("./results")
-    format: Literal["json"] = "json"
-    verbose: bool = False
-    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "WARNING"
+    dir: Path = Field(default=Path("./results"), description="Directory for scan result output files.")
+    format: Literal["json"] = Field(default="json", description="Output format for scan results.")
+    verbose: bool = Field(default=False, description="Enable verbose output during scan execution.")
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(
+        default="WARNING", description="Logging level for the scan process."
+    )
 
 
 class SecretsConfig(BaseModel, frozen=True):
     """API keys and sensitive credentials."""
 
-    openai_api_key: SecretStr = SecretStr("")
-    anthropic_api_key: SecretStr = SecretStr("")
+    openai_api_key: SecretStr = Field(default=SecretStr(""), description="OpenAI API key for LLM judge scoring.")
+    anthropic_api_key: SecretStr = Field(default=SecretStr(""), description="Anthropic API key for LLM judge scoring.")
 
 
 class JudgeConfig(BaseModel, frozen=True):
@@ -89,16 +99,25 @@ class JudgeConfig(BaseModel, frozen=True):
     ``anthropic:claude-3-haiku-20240307``).
     """
 
-    enabled: bool = False
-    model: str = Field(default="openai:gpt-4o-mini", min_length=1)
-    temperature: float = Field(default=0.0, ge=0.0, le=2.0)
-    max_tokens: int = Field(default=1024, ge=1)
+    enabled: bool = Field(default=False, description="Enable LLM-as-judge scoring.")
+    model: str = Field(
+        default="openai:gpt-4o-mini",
+        min_length=1,
+        description="Judge model in provider:model format.",
+        examples=["openai:gpt-4o-mini", "anthropic:claude-3-haiku"],
+    )
+    temperature: float = Field(
+        default=0.0, ge=0.0, le=2.0, description="Judge model temperature (0.0 for deterministic)."
+    )
+    max_tokens: int = Field(default=1024, ge=1, description="Maximum tokens for judge model responses.")
 
 
 class ScoringConfig(BaseModel, frozen=True):
     """Scoring and evaluation settings."""
 
-    canary_match_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
+    canary_match_threshold: float = Field(
+        default=0.8, ge=0.0, le=1.0, description="Fuzzy match threshold for canary string detection."
+    )
     judge: JudgeConfig = JudgeConfig()
 
 
