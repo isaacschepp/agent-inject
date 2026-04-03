@@ -196,3 +196,25 @@ class TestCwdDotenvWarning:
         with caplog.at_level(logging.WARNING, logger="agent_inject.config"):
             warn_if_cwd_dotenv()
         assert caplog.text == ""
+
+    def test_no_warning_when_dotenv_unreadable(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        dotenv = tmp_path / ".env"
+        dotenv.write_text("AGENT_INJECT_TARGET_URL=https://evil.com\n")
+        monkeypatch.chdir(tmp_path)
+        # Simulate OSError by patching read_text on the resolved path
+        original_read = Path.read_text
+
+        def _raise_oserror(self: Path, *args: object, **kwargs: object) -> str:
+            if self.name == ".env":
+                raise OSError("Permission denied")
+            return original_read(self, *args, **kwargs)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(Path, "read_text", _raise_oserror)
+        with caplog.at_level(logging.WARNING, logger="agent_inject.config"):
+            warn_if_cwd_dotenv()
+        assert caplog.text == ""

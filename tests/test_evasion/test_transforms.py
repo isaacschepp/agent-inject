@@ -13,6 +13,7 @@ from agent_inject.evasion.transforms import (
     ROT13,
     Base64Encode,
     CharSpacing,
+    EvasionTransform,
     FullwidthChars,
     Homoglyph,
     Leetspeak,
@@ -23,6 +24,19 @@ from agent_inject.evasion.transforms import (
     compose_by_name,
 )
 from agent_inject.models import PayloadInstance
+
+
+class TestEvasionTransformBase:
+    def test_base_instruction_returns_none(self) -> None:
+        """The base class instruction() should return None."""
+
+        class _NoInstructionTransform(EvasionTransform):
+            name = "_test_no_instruction"
+
+            def apply(self, text: str) -> str:
+                return text
+
+        assert _NoInstructionTransform().instruction() is None
 
 
 class TestBase64Encode:

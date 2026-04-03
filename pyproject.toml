@@ -202,7 +202,7 @@ parallel = true
 omit = ["src/agent_inject/__main__.py"]
 
 [tool.coverage.report]
-fail_under = 95
+fail_under = 100
 precision = 2
 show_missing = true
 exclude_also = [

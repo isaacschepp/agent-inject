@@ -5,12 +5,21 @@
 
 from __future__ import annotations
 
+import types
 from typing import ClassVar
+from unittest.mock import patch
 
 import pytest
 
 from agent_inject.attacks.base import FixedJailbreakAttack
-from agent_inject.attacks.registry import _ATTACKS, _reset_registry, get_all_attacks, get_attack, register_attack
+from agent_inject.attacks.registry import (
+    _ATTACKS,
+    _discover_builtin_attacks,
+    _reset_registry,
+    get_all_attacks,
+    get_attack,
+    register_attack,
+)
 from agent_inject.models import DeliveryVector, PayloadTier, TargetOutcome
 
 
@@ -212,3 +221,38 @@ class TestResetRegistry:
         _reset_registry()
         assert "_reset_test" not in _ATTACKS
         assert get_all_attacks() is not None  # re-discovery works after reset
+
+
+class TestDiscoverBuiltinAttacks:
+    def test_discovers_concrete_attack_class(self) -> None:
+        """_discover_builtin_attacks should register concrete BaseAttack subclasses from subpackages."""
+
+        class _DiscoverableAttack(FixedJailbreakAttack):
+            name = "_discoverable_test"
+            _templates: ClassVar[list[str]] = ["test: {goal}"]
+
+        # Also include a class with empty name (should be skipped — exercises the
+        # loop-continue branch at registry.py:82->81)
+        class _NoNameAttack(FixedJailbreakAttack):
+            name = ""
+            _templates: ClassVar[list[str]] = ["test: {goal}"]
+
+        # Create a fake module containing both classes
+        fake_module = types.ModuleType("agent_inject.attacks.direct._test_discover")
+        fake_module._DiscoverableAttack = _DiscoverableAttack  # type: ignore[attr-defined]
+        fake_module._NoNameAttack = _NoNameAttack  # type: ignore[attr-defined]
+
+        fake_module_info = types.SimpleNamespace(name="agent_inject.attacks.direct._test_discover", ispkg=False)
+
+        _ATTACKS.pop("_discoverable_test", None)  # ensure clean state
+        with (
+            patch("agent_inject.attacks.registry.pkgutil.walk_packages", return_value=[fake_module_info]),
+            patch("agent_inject.attacks.registry.importlib.import_module", return_value=fake_module),
+        ):
+            _discover_builtin_attacks()
+
+        try:
+            assert "_discoverable_test" in _ATTACKS
+            assert "" not in _ATTACKS  # empty-name class was skipped
+        finally:
+            _ATTACKS.pop("_discoverable_test", None)

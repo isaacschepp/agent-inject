@@ -16,6 +16,7 @@ from agent_inject.attacks.loader import (
     YamlAttackEntry,
     YamlPayloadFile,
     _build_attack_class,
+    _iter_yaml_files,
     load_yaml_payloads,
 )
 from agent_inject.models import PayloadTier, TargetOutcome
@@ -225,3 +226,40 @@ class TestLoadYamlPayloads:
             result = load_yaml_payloads(existing={})
 
         assert "yml-test" in result
+
+
+class TestIterYamlFiles:
+    def test_file_not_found_returns_empty(self) -> None:
+        """_iter_yaml_files should return [] when root.iterdir() raises FileNotFoundError."""
+        from unittest.mock import MagicMock
+
+        mock_root = MagicMock()
+        mock_root.iterdir.side_effect = FileNotFoundError("gone")
+        result = _iter_yaml_files(mock_root)
+        assert result == []
+
+    def test_empty_subdirectory_skipped(self, tmp_path: Path) -> None:
+        """A subdirectory with no yaml files should be traversed but yield nothing."""
+        sub = tmp_path / "empty_sub"
+        sub.mkdir()
+        (tmp_path / "root.yaml").write_text(yaml.dump({"attacks": [{"name": "root-test", "templates": ["x: {goal}"]}]}))
+
+        with patch("agent_inject.attacks.loader.files") as mock_files:
+            mock_files.return_value.joinpath.return_value = tmp_path
+            result = load_yaml_payloads(existing={})
+
+        assert "root-test" in result
+
+    def test_non_yaml_files_ignored(self, tmp_path: Path) -> None:
+        """Non-yaml files (e.g. .txt, .json) in the directory should be skipped."""
+        (tmp_path / "readme.txt").write_text("not a yaml file")
+        (tmp_path / "data.json").write_text("{}")
+        payload = {"attacks": [{"name": "valid-test", "templates": ["x: {goal}"]}]}
+        (tmp_path / "valid.yaml").write_text(yaml.dump(payload))
+
+        with patch("agent_inject.attacks.loader.files") as mock_files:
+            mock_files.return_value.joinpath.return_value = tmp_path
+            result = load_yaml_payloads(existing={})
+
+        assert "valid-test" in result
+        assert len(result) == 1
