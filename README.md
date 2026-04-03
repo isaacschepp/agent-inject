@@ -18,7 +18,7 @@
 | src/agent\_inject/attacks/rag/\_\_init\_\_.py            |        0 |        0 |        0 |        0 |     100.00% |           |
 | src/agent\_inject/attacks/registry.py                    |       50 |        0 |       12 |        0 |     100.00% |           |
 | src/agent\_inject/cli.py                                 |       85 |        0 |       18 |        0 |     100.00% |           |
-| src/agent\_inject/config.py                              |       87 |        0 |       18 |        0 |     100.00% |           |
+| src/agent\_inject/config.py                              |       98 |        0 |       22 |        0 |     100.00% |           |
 | src/agent\_inject/engine.py                              |       61 |        0 |       18 |        0 |     100.00% |           |
 | src/agent\_inject/evasion/\_\_init\_\_.py                |        2 |        0 |        0 |        0 |     100.00% |           |
 | src/agent\_inject/evasion/transforms.py                  |      110 |        0 |       12 |        0 |     100.00% |           |
@@ -37,7 +37,7 @@
 | src/agent\_inject/strategies/\_\_init\_\_.py             |        2 |        0 |        0 |        0 |     100.00% |           |
 | src/agent\_inject/strategies/base.py                     |       48 |        0 |        2 |        0 |     100.00% |           |
 | src/agent\_inject/strategies/crescendo.py                |       49 |        0 |        8 |        0 |     100.00% |           |
-| **TOTAL**                                                |  **956** |    **0** |  **182** |    **0** | **100.00%** |           |
+| **TOTAL**                                                |  **967** |    **0** |  **186** |    **0** | **100.00%** |           |
 
 
 ## Setup coverage badge
