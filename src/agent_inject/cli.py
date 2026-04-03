@@ -121,13 +121,19 @@ async def _async_scan(
 
 
 def _create_adapter(config: AgentInjectConfig) -> BaseAdapter:
-    """Create adapter from config."""
+    """Create adapter from config.
+
+    ``target_adapter`` is constrained to ``Literal["rest"]`` at the config
+    level, so the match below is exhaustive.  Extend the Literal and add
+    a new case when a second adapter ships.
+    """
     from agent_inject.harness.adapters.rest import RestAdapter
 
-    if config.target_adapter != "rest":
-        msg = f"Unknown adapter: {config.target_adapter!r}. Available: ['rest']"
-        raise ValueError(msg)
-    return RestAdapter(config.target_url, timeout=config.timeout_seconds)
+    if config.target_adapter == "rest":
+        return RestAdapter(config.target_url, timeout=config.timeout_seconds)
+    # Should be unreachable thanks to Literal constraint; guard for direct API callers.
+    msg = f"Unknown adapter: {config.target_adapter!r}"  # pragma: no cover
+    raise ValueError(msg)  # pragma: no cover
 
 
 def _create_scorers(config: AgentInjectConfig) -> list[BaseScorer]:

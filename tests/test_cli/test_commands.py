@@ -230,12 +230,13 @@ class TestFactories:
         assert isinstance(adapter, RestAdapter)
         assert adapter.timeout == 60.0
 
-    def test_create_adapter_unknown(self) -> None:
+    def test_create_adapter_unknown_rejected_at_config(self) -> None:
+        from pydantic import ValidationError
+
         from agent_inject.config import AgentInjectConfig
 
-        config = AgentInjectConfig(target_adapter="unknown")
-        with pytest.raises(ValueError, match="Unknown adapter"):
-            _create_adapter(config)
+        with pytest.raises(ValidationError):
+            AgentInjectConfig(target_adapter="unknown")  # type: ignore[arg-type]
 
     def test_create_scorers_uses_config_threshold(self) -> None:
         from agent_inject.config import AgentInjectConfig

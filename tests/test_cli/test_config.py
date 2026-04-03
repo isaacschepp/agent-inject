@@ -70,6 +70,67 @@ class TestValidation:
         with pytest.raises(ValidationError):
             AgentInjectConfig(canary_match_threshold=1.5)
 
+    # --- Literal constraints ---
+
+    def test_invalid_adapter_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            AgentInjectConfig(target_adapter="invalid")  # type: ignore[arg-type]
+
+    def test_invalid_output_format_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            AgentInjectConfig(output_format="xml")  # type: ignore[arg-type]
+
+    # --- URL validation ---
+
+    def test_invalid_url_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="HTTP"):
+            AgentInjectConfig(target_url="not-a-url")
+
+    def test_empty_url_allowed(self) -> None:
+        cfg = AgentInjectConfig(target_url="")
+        assert cfg.target_url == ""
+
+    def test_http_url_accepted(self) -> None:
+        cfg = AgentInjectConfig(target_url="http://localhost:8000")
+        assert cfg.target_url == "http://localhost:8000"
+
+    def test_https_url_accepted(self) -> None:
+        cfg = AgentInjectConfig(target_url="https://agent.example.com/chat")
+        assert cfg.target_url == "https://agent.example.com/chat"
+
+    def test_ftp_url_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="HTTP"):
+            AgentInjectConfig(target_url="ftp://files.example.com")
+
+    # --- max_turns upper bound ---
+
+    def test_max_turns_too_high(self) -> None:
+        with pytest.raises(ValidationError):
+            AgentInjectConfig(max_turns=101)
+
+    def test_max_turns_at_limit(self) -> None:
+        cfg = AgentInjectConfig(max_turns=100)
+        assert cfg.max_turns == 100
+
+    # --- judge_model non-empty ---
+
+    def test_judge_model_empty_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            AgentInjectConfig(judge_model="")
+
+    # --- Cross-field: LLM judge requires API key ---
+
+    def test_llm_judge_without_key_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="openai_api_key required"):
+            AgentInjectConfig(use_llm_judge=True)
+
+    def test_llm_judge_with_key_accepted(self) -> None:
+        cfg = AgentInjectConfig(
+            use_llm_judge=True,
+            openai_api_key=SecretStr("sk-test-key"),
+        )
+        assert cfg.use_llm_judge is True
+
 
 class TestFrozen:
     """Config must be immutable after instantiation (CWE-426 hardening)."""
