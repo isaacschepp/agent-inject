@@ -5,9 +5,30 @@
 
 from __future__ import annotations
 
+import copy
+import types
+from collections.abc import Mapping  # noqa: TC003 — needed at runtime for get_type_hints()
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
+
+
+def _deepcopy_mapping_proxy(
+    proxy: types.MappingProxyType[Any, Any],
+    memo: dict[int, Any],
+) -> dict[Any, Any]:
+    """Enable ``copy.deepcopy`` (and thus ``dataclasses.asdict``) for ``MappingProxyType``."""
+    return copy.deepcopy(dict(proxy), memo)
+
+
+def _register_mapping_proxy_deepcopy() -> None:
+    """Register deepcopy support for ``MappingProxyType`` when supported by ``copy``."""
+    if hasattr(copy, "_deepcopy_dispatch"):
+        copy._deepcopy_dispatch[types.MappingProxyType] = _deepcopy_mapping_proxy  # type: ignore[index]  # noqa: SLF001
+
+
+# Register so dataclasses.asdict() can deep-copy MappingProxyType fields.
+_register_mapping_proxy_deepcopy()
 
 
 class DeliveryVector(StrEnum):
@@ -108,21 +129,21 @@ class ToolCall:
     """A tool/function call observed during agent execution."""
 
     tool_name: str
-    arguments: dict[str, Any]
+    arguments: Mapping[str, Any]
     result: str | None = None
     error: str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "arguments", types.MappingProxyType(dict(self.arguments)))
 
 
 @dataclass(frozen=True, slots=True)
 class AttackResult:
     """Result of executing a single attack against a target agent.
 
-    Frozen after construction.  Use ``dataclasses.replace()`` to create a
-    modified copy (e.g. ``replace(result, attack_success=True)``).
-
-    Note: ``environment_diff`` and ``scorer_details`` are dicts whose
-    *contents* can still be mutated even though the attribute itself
-    cannot be reassigned.  This is a known compromise — see #490.
+    Fully immutable after construction — dict fields are wrapped in
+    ``MappingProxyType`` to prevent mutation.  Use
+    ``dataclasses.replace()`` to create a modified copy.
     """
 
     payload_instance: PayloadInstance
@@ -131,9 +152,13 @@ class AttackResult:
     detection_evaded: bool = True
     raw_output: str = ""
     tool_calls: tuple[ToolCall, ...] = ()
-    environment_diff: dict[str, Any] = field(default_factory=lambda: dict[str, Any]())  # noqa: PLW0108
-    scorer_details: dict[str, Any] = field(default_factory=lambda: dict[str, Any]())  # noqa: PLW0108
+    environment_diff: Mapping[str, Any] = field(default_factory=lambda: dict[str, Any]())  # noqa: PLW0108
+    scorer_details: Mapping[str, Any] = field(default_factory=lambda: dict[str, Any]())  # noqa: PLW0108
     error: str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "environment_diff", types.MappingProxyType(dict(self.environment_diff)))
+        object.__setattr__(self, "scorer_details", types.MappingProxyType(dict(self.scorer_details)))
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,4 +169,7 @@ class Score:
     passed: bool
     value: float
     rationale: str = ""
-    details: dict[str, Any] = field(default_factory=lambda: dict[str, Any]())  # noqa: PLW0108
+    details: Mapping[str, Any] = field(default_factory=lambda: dict[str, Any]())  # noqa: PLW0108
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "details", types.MappingProxyType(dict(self.details)))

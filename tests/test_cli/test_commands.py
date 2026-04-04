@@ -15,7 +15,7 @@ from typer.testing import CliRunner
 from agent_inject import __version__
 from agent_inject.attacks.base import FixedJailbreakAttack
 from agent_inject.attacks.registry import _ATTACKS, register_attack
-from agent_inject.cli import _create_adapter, _create_scorers, app
+from agent_inject.cli import _create_adapter, _create_scorers, _json_default, app
 
 runner = CliRunner()
 
@@ -321,3 +321,67 @@ class TestVersion:
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
         assert __version__ in _strip(result.stdout)
+
+
+class TestJsonDefault:
+    """Tests for _json_default serialization helper (#513)."""
+
+    def test_mapping_proxy_serialized_as_dict(self) -> None:
+        import json
+        import types
+
+        proxy = types.MappingProxyType({"key": "value"})
+        result = json.dumps({"data": proxy}, default=_json_default)
+        parsed = json.loads(result)
+        assert parsed["data"] == {"key": "value"}
+
+    def test_non_proxy_falls_back_to_str(self) -> None:
+        assert _json_default(42) == "42"
+
+    def test_full_scan_result_serializes(self) -> None:
+        """Verify the real CLI serialization path works with MappingProxyType fields."""
+        import dataclasses
+        import json
+
+        from agent_inject.models import (
+            AttackResult,
+            DeliveryVector,
+            Payload,
+            PayloadInstance,
+            PayloadTier,
+            Score,
+            TargetOutcome,
+        )
+
+        payload = Payload(
+            id="test",
+            template="t",
+            tier=PayloadTier.CLASSIC,
+            delivery_vectors=(DeliveryVector.DIRECT,),
+            target_outcomes=(TargetOutcome.GOAL_HIJACKING,),
+            source="test",
+            year=2026,
+        )
+        instance = PayloadInstance(payload=payload, rendered="t", delivery_vector=DeliveryVector.DIRECT)
+        result = AttackResult(
+            payload_instance=instance,
+            environment_diff={"admin": True},
+            scorer_details={"method": "heuristic"},
+        )
+        score = Score(scorer_name="test", passed=True, value=1.0, details={"confidence": 0.95})
+
+        from agent_inject.engine import ScanResult
+
+        scan = ScanResult(
+            results=(result,),
+            scores=((result, (score,)),),
+            total_payloads=1,
+            successful_attacks=1,
+            duration_seconds=1.0,
+        )
+        # This is the exact pattern from cli.py:150
+        serialized = json.dumps(dataclasses.asdict(scan), indent=2, default=_json_default)
+        parsed = json.loads(serialized)
+        assert parsed["results"][0]["environment_diff"] == {"admin": True}
+        assert parsed["results"][0]["scorer_details"] == {"method": "heuristic"}
+        assert parsed["scores"][0][1][0]["details"] == {"confidence": 0.95}

@@ -78,9 +78,16 @@ class TestRefusalAnalysisScorer:
         assert score.details["refusal_outcome"] == "soft_compliance"
 
     async def test_captures_refusal_category(self, scorer: RefusalAnalysisScorer) -> None:
+        from dataclasses import replace
+
         result = _make_result("I apologize, but I cannot help with that.")
-        result.scorer_details["refusal_category"] = "cyber"
-        result.scorer_details["refusal_explanation"] = "This request asks for malware."
+        result = replace(
+            result,
+            scorer_details={
+                "refusal_category": "cyber",
+                "refusal_explanation": "This request asks for malware.",
+            },
+        )
 
         score = await scorer.score(result)
 

@@ -147,13 +147,22 @@ async def _async_scan(
             parallel_scoring=config.engine.parallel_scoring,
         )
 
-    output.write_text(json.dumps(dataclasses.asdict(result), indent=2, default=str))  # noqa: ASYNC240
+    output.write_text(json.dumps(dataclasses.asdict(result), indent=2, default=_json_default))  # noqa: ASYNC240
     console.print(
         f"[bold green]Scan complete:[/bold green] "
         f"{result.successful_attacks}/{result.total_payloads} successful "
         f"in {result.duration_seconds}s"
     )
     console.print(f"Results written to {output}")
+
+
+def _json_default(obj: object) -> object:
+    """JSON serializer fallback for ``MappingProxyType`` and other non-standard types."""
+    import types
+
+    if isinstance(obj, types.MappingProxyType):
+        return dict(obj)  # pyright: ignore[reportUnknownArgumentType,reportUnknownVariableType]
+    return str(obj)
 
 
 def _create_adapter(config: AgentInjectConfig) -> BaseAdapter:
