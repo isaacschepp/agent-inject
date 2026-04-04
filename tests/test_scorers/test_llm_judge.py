@@ -174,14 +174,14 @@ class TestLlmJudgeScorer:
     def test_semaphore_uses_config_max_concurrent(self) -> None:
         """Semaphore limit should come from JudgeConfig.max_concurrent."""
         scorer = self._make_scorer(max_concurrent=7)
-        assert scorer._semaphore._value == 7
+        assert scorer._max_concurrent == 7
 
-    def test_default_semaphore_is_3(self) -> None:
+    def test_default_max_concurrent_is_3(self) -> None:
         scorer = self._make_scorer()
-        assert scorer._semaphore._value == 3
+        assert scorer._max_concurrent == 3
 
-    def test_clients_initially_none(self) -> None:
-        """SDK clients should be lazily initialized, not created in __init__."""
+    def test_clients_lazily_initialized(self) -> None:
+        """SDK clients should not exist until first use."""
         scorer = self._make_scorer()
-        assert scorer._openai_client is None
-        assert scorer._anthropic_client is None
+        assert not hasattr(scorer, "_openai_client")
+        assert not hasattr(scorer, "_anthropic_client")

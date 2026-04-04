@@ -562,6 +562,28 @@ class TestUnknownEnvVarWarning:
         assert "Unknown env var" in caplog.text
         assert "Did you mean" not in caplog.text
 
+    def test_known_env_vars_includes_deeply_nested(self) -> None:
+        """_known_env_vars must include three-level-deep judge fields."""
+        from agent_inject.config import _known_env_vars
+
+        known = _known_env_vars()
+        # Two-level: standard fields
+        assert "AGENT_INJECT_TARGET__URL" in known
+        assert "AGENT_INJECT_ENGINE__MAX_CONCURRENT" in known
+        # Three-level: nested JudgeConfig inside ScoringConfig
+        assert "AGENT_INJECT_SCORING__JUDGE__ENABLED" in known
+        assert "AGENT_INJECT_SCORING__JUDGE__MODEL" in known
+        assert "AGENT_INJECT_SCORING__JUDGE__MAX_CONCURRENT" in known
+
+    def test_no_warning_for_deeply_nested_judge_var(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Deeply nested vars like SCORING__JUDGE__MAX_CONCURRENT must be recognised."""
+        monkeypatch.setenv("AGENT_INJECT_SCORING__JUDGE__MAX_CONCURRENT", "10")
+        with caplog.at_level(logging.WARNING, logger="agent_inject.config"):
+            warn_unknown_env_vars()
+        assert caplog.text == ""
+
 
 class TestCwdDotenvWarning:
     """Tests for the CWD .env detection warning."""
