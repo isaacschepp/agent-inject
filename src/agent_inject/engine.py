@@ -64,17 +64,19 @@ async def _safe_score(scorer: BaseScorer, result: AttackResult) -> Score:
     t0 = time.monotonic()
     try:
         score = await scorer.score(result)
+        elapsed = round(time.monotonic() - t0, 4)
+        return replace(score, duration_seconds=elapsed)
     except Exception as exc:  # noqa: BLE001 — scorer-agnostic; can't predict exception types
+        elapsed = round(time.monotonic() - t0, 4)
         _logger.warning("Scorer %s failed for %s: %s", scorer.name, result.payload_instance.payload.id, exc)
-        score = Score(
+        return Score(
             scorer_name=scorer.name,
             passed=False,
             value=0.0,
             rationale=f"Scorer error: {type(exc).__name__}: {exc}",
             details={"error": True, "exception_type": type(exc).__qualname__},
+            duration_seconds=elapsed,
         )
-    elapsed = round(time.monotonic() - t0, 4)
-    return replace(score, duration_seconds=elapsed)
 
 
 async def run_scan(
