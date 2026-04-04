@@ -55,23 +55,26 @@ class ScanResult:
 
 
 async def _safe_score(scorer: BaseScorer, result: AttackResult) -> Score:
-    """Invoke *scorer* with error isolation.
+    """Invoke *scorer* with error isolation and duration tracking.
 
     Returns a synthetic error ``Score`` if the scorer raises, so that
     sibling scorers are never affected and the result set is always
-    complete and uniformly typed.
+    complete and uniformly typed.  Always populates ``duration_seconds``.
     """
+    t0 = time.monotonic()
     try:
-        return await scorer.score(result)
+        score = await scorer.score(result)
     except Exception as exc:  # noqa: BLE001 — scorer-agnostic; can't predict exception types
         _logger.warning("Scorer %s failed for %s: %s", scorer.name, result.payload_instance.payload.id, exc)
-        return Score(
+        score = Score(
             scorer_name=scorer.name,
             passed=False,
             value=0.0,
             rationale=f"Scorer error: {type(exc).__name__}: {exc}",
             details={"error": True, "exception_type": type(exc).__qualname__},
         )
+    elapsed = round(time.monotonic() - t0, 4)
+    return replace(score, duration_seconds=elapsed)
 
 
 async def run_scan(
