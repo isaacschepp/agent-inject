@@ -246,6 +246,20 @@ class TestFactories:
         with pytest.raises(ValidationError):
             AgentInjectConfig(target={"adapter": "unknown"})
 
+    def test_create_scorers_with_judge_enabled(self) -> None:
+        from pydantic import SecretStr
+
+        from agent_inject.config import AgentInjectConfig
+        from agent_inject.scorers.llm_judge import LlmJudgeScorer
+
+        config = AgentInjectConfig(
+            scoring={"judge": {"enabled": True, "model": "openai:gpt-4o-mini"}},
+            secrets={"openai_api_key": SecretStr("sk-test")},
+        )
+        scorers = _create_scorers(config)
+        judge_scorers = [s for s in scorers if isinstance(s, LlmJudgeScorer)]
+        assert len(judge_scorers) == 1
+
     def test_create_scorers_uses_config_threshold(self) -> None:
         from agent_inject.config import AgentInjectConfig
         from agent_inject.scorers.base import CanaryMatchScorer
