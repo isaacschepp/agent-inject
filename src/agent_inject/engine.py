@@ -120,9 +120,11 @@ async def run_scan(
     successful = 0
     for result in results:
         if parallel_scoring and len(scorers) > 1:
-            result_scores = list(await asyncio.gather(
-                *(_safe_score(scorer, result) for scorer in scorers),
-            ))
+            result_scores = list(
+                await asyncio.gather(
+                    *(_safe_score(scorer, result) for scorer in scorers),
+                )
+            )
         else:
             result_scores = [await _safe_score(scorer, result) for scorer in scorers]
         if any(s.passed for s in result_scores):

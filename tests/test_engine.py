@@ -279,9 +279,7 @@ class TestParallelScoring:
 
         assert parallel.successful_attacks == sequential.successful_attacks
         assert len(parallel.scores) == len(sequential.scores)
-        for (p_result, p_scores), (s_result, s_scores) in zip(
-            parallel.scores, sequential.scores, strict=True
-        ):
+        for (p_result, p_scores), (s_result, s_scores) in zip(parallel.scores, sequential.scores, strict=True):
             assert p_result.attack_success == s_result.attack_success
             assert len(p_scores) == len(s_scores)
             for p, s in zip(p_scores, s_scores, strict=True):
@@ -334,9 +332,7 @@ class TestParallelScoring:
 class TestScorerErrorIsolation:
     """Tests for _safe_score error isolation (#514)."""
 
-    async def test_safe_score_returns_error_score_on_failure(
-        self, sample_attack_result: AttackResult
-    ) -> None:
+    async def test_safe_score_returns_error_score_on_failure(self, sample_attack_result: AttackResult) -> None:
         exploding = ExplodingScorer()
         score = await _safe_score(exploding, sample_attack_result)
         assert score.scorer_name == "exploding"
