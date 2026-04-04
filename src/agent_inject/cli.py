@@ -181,10 +181,21 @@ def _create_scorers(config: AgentInjectConfig) -> list[BaseScorer]:
     """Create scorers from config."""
     from agent_inject.scorers.base import CanaryMatchScorer, SubstringMatchScorer
 
-    return [
+    scorers: list[BaseScorer] = [
         CanaryMatchScorer(threshold=config.scoring.canary_match_threshold),
         SubstringMatchScorer(),
     ]
+
+    if config.scoring.judge.enabled:
+        from agent_inject.scorers.llm_judge import LlmJudgeScorer
+
+        provider = config.scoring.judge.model.split(":")[0] if ":" in config.scoring.judge.model else "openai"
+        api_key = (
+            config.secrets.openai_api_key if provider == "openai" else config.secrets.anthropic_api_key
+        ).get_secret_value()
+        scorers.append(LlmJudgeScorer(config.scoring.judge, api_key))
+
+    return scorers
 
 
 @app.command()

@@ -16,11 +16,13 @@ from agent_inject.scorers.base import (
     UnauthorizedToolCallScorer,
     UtilityPreservedScorer,
 )
+from agent_inject.scorers.llm_judge import LlmJudgeScorer
 
 __all__ = [
     "BaseScorer",
     "CanaryMatchScorer",
     "DataExfiltrationScorer",
+    "LlmJudgeScorer",
     "ParameterTamperingScorer",
     "PrefixMatchScorer",
     "RefusalAnalysisScorer",
