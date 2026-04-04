@@ -663,6 +663,15 @@ class TestParseRetryAfter:
         exc = _HTTPStatusError(429, headers={"retry-after-ms": "bad", "retry-after": "10"})
         assert _parse_retry_after(exc) == 10.0
 
+    def test_case_insensitive_header_lookup(self) -> None:
+        """Retry-After with mixed casing should still be parsed."""
+        exc = _HTTPStatusError(429, headers={"Retry-After": "7"})
+        assert _parse_retry_after(exc) == 7.0
+
+    def test_case_insensitive_ms_header(self) -> None:
+        exc = _HTTPStatusError(429, headers={"Retry-After-Ms": "3000"})
+        assert _parse_retry_after(exc) == 3.0
+
     def test_response_without_headers_returns_none(self) -> None:
         """Exception whose response has no headers attribute."""
 

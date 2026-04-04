@@ -196,15 +196,18 @@ def _parse_retry_after(exc: Exception) -> float | None:  # noqa: PLR0911 — par
     headers = getattr(response, "headers", None)
     if headers is None:
         return None
+    # Build a lowercased lookup so we handle arbitrary header casing
+    # (httpx.Headers is already case-insensitive, but plain dicts are not).
+    lower: dict[str, str] = {k.lower(): v for k, v in headers.items()}
     # 1. Non-standard millisecond header (used by OpenAI / Anthropic).
-    raw_ms = headers.get("retry-after-ms")
+    raw_ms = lower.get("retry-after-ms")
     if raw_ms:
         try:
             return float(raw_ms) / 1000.0
         except (TypeError, ValueError):
             pass
     # 2. Standard: seconds (allows non-standard floats like "1.5").
-    raw = headers.get("retry-after")
+    raw = lower.get("retry-after")
     if not raw:
         return None
     try:
@@ -252,13 +255,16 @@ async def _send_one_with_retry(
     delay instead.
     """
     last_error: str = ""
+    attempts_made = 0
     for attempt in range(max_retries + 1):
+        attempts_made = attempt + 1
         try:
             return await adapter.send_payload(instance)
         except Exception as e:  # noqa: BLE001 — adapter-agnostic; can't predict exception types
             last_error = str(e)
-            if not _is_retryable(e) or attempt >= max_retries:
-                if not _is_retryable(e):
+            retryable = _is_retryable(e)
+            if not retryable or attempt >= max_retries:
+                if not retryable:
                     _logger.info("Non-retryable error for %s: %s", instance.payload.id, e)
                 break
             delay = _backoff_delay(attempt, retry_backoff_seconds, e)
@@ -271,7 +277,12 @@ async def _send_one_with_retry(
                 e,
             )
             await asyncio.sleep(delay)
-    _logger.warning("Send failed for %s after %d retries: %s", instance.payload.id, max_retries, last_error)
+    _logger.warning(
+        "Send failed for %s after %d attempt(s): %s",
+        instance.payload.id,
+        attempts_made,
+        last_error,
+    )
     return AttackResult(payload_instance=instance, error=last_error)
 
 
