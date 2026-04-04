@@ -35,11 +35,11 @@
 | src/agent\_inject/reports/\_\_init\_\_.py                |        0 |        0 |        0 |        0 |     100.00% |           |
 | src/agent\_inject/scorers/\_\_init\_\_.py                |        3 |        0 |        0 |        0 |     100.00% |           |
 | src/agent\_inject/scorers/base.py                        |      189 |        0 |       72 |        0 |     100.00% |           |
-| src/agent\_inject/scorers/llm\_judge.py                  |       68 |        0 |       10 |        0 |     100.00% |           |
+| src/agent\_inject/scorers/llm\_judge.py                  |       85 |        0 |       14 |        0 |     100.00% |           |
 | src/agent\_inject/strategies/\_\_init\_\_.py             |        2 |        0 |        0 |        0 |     100.00% |           |
 | src/agent\_inject/strategies/base.py                     |       49 |        0 |        2 |        0 |     100.00% |           |
 | src/agent\_inject/strategies/crescendo.py                |       49 |        0 |        8 |        0 |     100.00% |           |
-| **TOTAL**                                                | **1187** |    **0** |  **226** |    **0** | **100.00%** |           |
+| **TOTAL**                                                | **1204** |    **0** |  **230** |    **0** | **100.00%** |           |
 
 
 ## Setup coverage badge
