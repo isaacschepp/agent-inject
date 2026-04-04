@@ -45,25 +45,33 @@ class RestAdapter(BaseAdapter):
         payload: PayloadInstance,
         context: dict[str, Any] | None = None,
     ) -> AttackResult:
-        """Send payload as HTTP POST and capture response."""
+        """Send payload as HTTP POST and capture response.
+
+        Retryable errors (transport failures, 429, 5xx) are **raised** so
+        the engine retry logic can handle them.  Non-retryable HTTP errors
+        (4xx except 429) are returned as ``AttackResult(error=...)``.
+        """
         body: dict[str, Any] = {self.message_field: payload.rendered}
         if context:
             body.update(context)
 
+        resp = await self._client.post(
+            self.base_url,
+            json=body,
+            headers=self.headers,
+        )
         try:
-            resp = await self._client.post(
-                self.base_url,
-                json=body,
-                headers=self.headers,
-            )
             resp.raise_for_status()
-            try:
-                data = resp.json()
-                raw_output = str(data.get(self.response_field, data))
-            except (ValueError, KeyError):
-                raw_output = resp.text
-        except httpx.HTTPError as e:
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 429 or e.response.status_code >= 500:
+                raise  # Retryable — let engine retry logic handle it.
             return AttackResult(payload_instance=payload, error=str(e))
+
+        try:
+            data = resp.json()
+            raw_output = str(data.get(self.response_field, data))
+        except (ValueError, KeyError):
+            raw_output = resp.text
 
         return AttackResult(payload_instance=payload, raw_output=raw_output)
 

@@ -6,7 +6,9 @@
 from __future__ import annotations
 
 import asyncio
+import email.utils
 import logging
+import random
 import time
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any
@@ -144,30 +146,131 @@ async def run_scan(
     )
 
 
+_RETRYABLE_STATUS_CODES: frozenset[int] = frozenset(
+    {
+        408,  # Request Timeout
+        429,  # Too Many Requests
+        500,  # Internal Server Error
+        502,  # Bad Gateway
+        503,  # Service Unavailable
+        504,  # Gateway Timeout
+        524,  # Cloudflare Timeout
+        529,  # Anthropic Overloaded
+    }
+)
+
+_MAX_RETRY_AFTER: float = 60.0
+_MAX_BACKOFF: float = 60.0
+
+
+def _is_retryable(exc: Exception) -> bool:
+    """Classify whether *exc* is worth retrying.
+
+    Uses duck-typing (``hasattr``) to stay adapter-agnostic — works
+    with ``httpx.HTTPStatusError``, SDK-specific errors, or any
+    exception that exposes ``.response.status_code``.
+    """
+    response = getattr(exc, "response", None)
+    if response is not None:
+        status = getattr(response, "status_code", None)
+        if status is not None:
+            return status in _RETRYABLE_STATUS_CODES
+    # Transport / connection / OS-level errors — always retryable.
+    if isinstance(exc, (ConnectionError, TimeoutError, OSError)):
+        return True
+    # Programming errors — never retryable.  Unknown errors default to
+    # retryable as a fail-safe (prefer wasting retries over losing results).
+    return not isinstance(exc, (ValueError, TypeError, KeyError, AttributeError))
+
+
+def _parse_retry_after(exc: Exception) -> float | None:  # noqa: PLR0911 — parsing three distinct header formats
+    """Extract ``Retry-After`` delay (seconds) from an HTTP error, if present.
+
+    Follows the OpenAI/Anthropic SDK three-layer parsing pattern:
+    ``retry-after-ms`` (non-standard, milliseconds) →
+    ``retry-after`` (seconds) → ``retry-after`` (HTTP-date).
+    """
+    response = getattr(exc, "response", None)
+    if response is None:
+        return None
+    headers = getattr(response, "headers", None)
+    if headers is None:
+        return None
+    # 1. Non-standard millisecond header (used by OpenAI / Anthropic).
+    raw_ms = headers.get("retry-after-ms")
+    if raw_ms:
+        try:
+            return float(raw_ms) / 1000.0
+        except (TypeError, ValueError):
+            pass
+    # 2. Standard: seconds (allows non-standard floats like "1.5").
+    raw = headers.get("retry-after")
+    if not raw:
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        pass
+    # 3. HTTP-date format (RFC 9110).
+    parsed = email.utils.parsedate_tz(raw)
+    if parsed is not None:
+        return max(0.0, email.utils.mktime_tz(parsed) - time.time())
+    return None
+
+
+def _backoff_delay(attempt: int, base: float, exc: Exception) -> float:
+    """Compute retry delay with Retry-After support and full jitter.
+
+    If the exception carries a ``Retry-After`` header (HTTP 429), that
+    value is used directly (capped at ``_MAX_RETRY_AFTER``).  Otherwise
+    exponential backoff with full jitter is applied — the strategy
+    recommended by the `AWS Architecture Blog`_ to minimise thundering
+    herd effects in concurrent scanners.
+
+    .. _AWS Architecture Blog:
+       https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+    """
+    retry_after = _parse_retry_after(exc)
+    if retry_after is not None and 0 < retry_after <= _MAX_RETRY_AFTER:
+        return retry_after
+    exp = base * (2**attempt)
+    return random.uniform(0, min(exp, _MAX_BACKOFF))  # noqa: S311 — jitter, not crypto
+
+
 async def _send_one_with_retry(
     adapter: BaseAdapter,
     instance: PayloadInstance,
     max_retries: int,
     retry_backoff_seconds: float,
 ) -> AttackResult:
-    """Send a single payload with exponential-backoff retry."""
+    """Send a single payload with classified retry and jittered backoff.
+
+    Non-retryable errors (4xx client errors, programming errors) abort
+    immediately.  Retryable errors (transport failures, 429, 5xx) are
+    retried with exponential backoff and full jitter.  HTTP 429
+    responses with a ``Retry-After`` header use the server-requested
+    delay instead.
+    """
     last_error: str = ""
     for attempt in range(max_retries + 1):
         try:
             return await adapter.send_payload(instance)
         except Exception as e:  # noqa: BLE001 — adapter-agnostic; can't predict exception types
             last_error = str(e)
-            if attempt < max_retries:
-                delay = retry_backoff_seconds * (2**attempt)
-                _logger.info(
-                    "Retry %d/%d for %s after %.1fs: %s",
-                    attempt + 1,
-                    max_retries,
-                    instance.payload.id,
-                    delay,
-                    e,
-                )
-                await asyncio.sleep(delay)
+            if not _is_retryable(e) or attempt >= max_retries:
+                if not _is_retryable(e):
+                    _logger.info("Non-retryable error for %s: %s", instance.payload.id, e)
+                break
+            delay = _backoff_delay(attempt, retry_backoff_seconds, e)
+            _logger.info(
+                "Retry %d/%d for %s after %.1fs: %s",
+                attempt + 1,
+                max_retries,
+                instance.payload.id,
+                delay,
+                e,
+            )
+            await asyncio.sleep(delay)
     _logger.warning("Send failed for %s after %d retries: %s", instance.payload.id, max_retries, last_error)
     return AttackResult(payload_instance=instance, error=last_error)
 

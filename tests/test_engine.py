@@ -8,7 +8,15 @@ from __future__ import annotations
 from typing import Any, ClassVar, override
 
 from agent_inject.attacks.base import FixedJailbreakAttack
-from agent_inject.engine import ScanResult, _safe_score, _send_one_with_retry, run_scan
+from agent_inject.engine import (
+    ScanResult,
+    _backoff_delay,
+    _is_retryable,
+    _parse_retry_after,
+    _safe_score,
+    _send_one_with_retry,
+    run_scan,
+)
 from agent_inject.evasion.transforms import Base64Encode, compose
 from agent_inject.harness.base import BaseAdapter
 from agent_inject.models import AttackResult, DeliveryVector, PayloadInstance, Score
@@ -561,3 +569,228 @@ class TestInterleavedPipeline:
         result = await _send_one_with_retry(adapter, instance, max_retries=0, retry_backoff_seconds=0.01)
         assert result.raw_output == "hello"
         assert result.error is None
+
+
+class _FakeResponse:
+    """Minimal response stub for testing _is_retryable / _parse_retry_after."""
+
+    def __init__(self, status_code: int, headers: dict[str, str] | None = None) -> None:
+        self.status_code = status_code
+        self.headers = headers or {}
+
+
+class _HTTPStatusError(Exception):
+    """Minimal stand-in for httpx.HTTPStatusError."""
+
+    def __init__(self, status_code: int, headers: dict[str, str] | None = None) -> None:
+        super().__init__(f"HTTP {status_code}")
+        self.response = _FakeResponse(status_code, headers)
+
+
+class TestIsRetryable:
+    """Tests for _is_retryable exception classifier."""
+
+    def test_retryable_status_codes(self) -> None:
+        for code in (408, 429, 500, 502, 503, 504, 524, 529):
+            assert _is_retryable(_HTTPStatusError(code)) is True, f"Expected {code} to be retryable"
+
+    def test_non_retryable_status_codes(self) -> None:
+        for code in (400, 401, 403, 404, 405, 422):
+            assert _is_retryable(_HTTPStatusError(code)) is False, f"Expected {code} to be non-retryable"
+
+    def test_connection_error_retryable(self) -> None:
+        assert _is_retryable(ConnectionError("refused")) is True
+
+    def test_timeout_error_retryable(self) -> None:
+        assert _is_retryable(TimeoutError("timed out")) is True
+
+    def test_os_error_retryable(self) -> None:
+        assert _is_retryable(OSError("network unreachable")) is True
+
+    def test_value_error_not_retryable(self) -> None:
+        assert _is_retryable(ValueError("bad input")) is False
+
+    def test_type_error_not_retryable(self) -> None:
+        assert _is_retryable(TypeError("wrong type")) is False
+
+    def test_key_error_not_retryable(self) -> None:
+        assert _is_retryable(KeyError("missing")) is False
+
+    def test_unknown_error_defaults_to_retryable(self) -> None:
+        assert _is_retryable(RuntimeError("mystery")) is True
+
+    def test_response_without_status_code_falls_through(self) -> None:
+        """Exception with .response but no .status_code uses type-based classification."""
+
+        class WeirdError(Exception):
+            response = object()  # has .response but no .status_code
+
+        assert _is_retryable(WeirdError()) is True  # unknown → retryable
+
+
+class TestParseRetryAfter:
+    """Tests for _parse_retry_after header parsing."""
+
+    def test_seconds_integer(self) -> None:
+        exc = _HTTPStatusError(429, headers={"retry-after": "30"})
+        assert _parse_retry_after(exc) == 30.0
+
+    def test_seconds_float(self) -> None:
+        exc = _HTTPStatusError(429, headers={"retry-after": "1.5"})
+        assert _parse_retry_after(exc) == 1.5
+
+    def test_milliseconds_header(self) -> None:
+        exc = _HTTPStatusError(429, headers={"retry-after-ms": "2500"})
+        assert _parse_retry_after(exc) == 2.5
+
+    def test_ms_takes_priority_over_seconds(self) -> None:
+        exc = _HTTPStatusError(429, headers={"retry-after-ms": "1000", "retry-after": "99"})
+        assert _parse_retry_after(exc) == 1.0
+
+    def test_no_header_returns_none(self) -> None:
+        exc = _HTTPStatusError(429)
+        assert _parse_retry_after(exc) is None
+
+    def test_no_response_returns_none(self) -> None:
+        assert _parse_retry_after(RuntimeError("no response")) is None
+
+    def test_malformed_value_returns_none(self) -> None:
+        exc = _HTTPStatusError(429, headers={"retry-after": "not-a-number"})
+        assert _parse_retry_after(exc) is None
+
+    def test_malformed_ms_falls_through(self) -> None:
+        """Non-numeric retry-after-ms falls through to retry-after."""
+        exc = _HTTPStatusError(429, headers={"retry-after-ms": "bad", "retry-after": "10"})
+        assert _parse_retry_after(exc) == 10.0
+
+    def test_response_without_headers_returns_none(self) -> None:
+        """Exception whose response has no headers attribute."""
+
+        class NoHeadersError(Exception):
+            response = type("R", (), {})()  # response with no .headers
+
+        assert _parse_retry_after(NoHeadersError()) is None
+
+    def test_http_date_format(self) -> None:
+        import time
+
+        future = time.time() + 10
+        date_str = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime(future))
+        exc = _HTTPStatusError(429, headers={"retry-after": date_str})
+        result = _parse_retry_after(exc)
+        assert result is not None
+        assert 5.0 <= result <= 15.0  # Allow some clock drift
+
+
+class TestBackoffDelay:
+    """Tests for _backoff_delay jitter and Retry-After."""
+
+    def test_uses_retry_after_when_present(self) -> None:
+        exc = _HTTPStatusError(429, headers={"retry-after": "5"})
+        assert _backoff_delay(0, 2.0, exc) == 5.0
+
+    def test_ignores_retry_after_exceeding_cap(self) -> None:
+        exc = _HTTPStatusError(429, headers={"retry-after": "999"})
+        delay = _backoff_delay(0, 2.0, exc)
+        assert delay <= 60.0  # Falls back to jittered backoff
+
+    def test_jitter_within_bounds(self) -> None:
+        exc = RuntimeError("no retry-after")
+        for attempt in range(5):
+            delay = _backoff_delay(attempt, 2.0, exc)
+            max_expected = min(2.0 * (2**attempt), 60.0)
+            assert 0 <= delay <= max_expected
+
+    def test_jitter_produces_variable_delays(self) -> None:
+        exc = RuntimeError("no retry-after")
+        delays = {_backoff_delay(2, 2.0, exc) for _ in range(20)}
+        assert len(delays) > 1  # Not all identical
+
+
+class TestDifferentiatedRetry:
+    """Integration tests for differentiated error handling in the retry loop."""
+
+    async def test_non_retryable_error_aborts_immediately(self) -> None:
+        call_count = 0
+
+        class NonRetryableAdapter(BaseAdapter):
+            name = "non_retryable"
+
+            @override
+            async def send_payload(
+                self,
+                payload: PayloadInstance,
+                context: dict[str, Any] | None = None,
+            ) -> AttackResult:
+                nonlocal call_count
+                call_count += 1
+                raise ValueError("bad input — non-retryable")
+
+        adapter = NonRetryableAdapter()
+        result = await run_scan(
+            adapter,
+            attacks=[SimpleAttack()],
+            scorers=[],
+            goal="test",
+            max_concurrent=5,
+            max_retries=3,
+            retry_backoff_seconds=0.01,
+        )
+        assert result.total_payloads == 1
+        assert result.results[0].error is not None
+        assert "bad input" in result.results[0].error
+        # Should NOT retry — only 1 call
+        assert call_count == 1
+
+    async def test_negative_max_retries_produces_error(self) -> None:
+        """Edge case: max_retries=-1 means zero attempts — immediate error."""
+        from agent_inject.models import Payload, PayloadTier
+
+        payload = Payload(
+            id="test",
+            template="t",
+            tier=PayloadTier.CLASSIC,
+            delivery_vectors=(),
+            target_outcomes=(),
+            source="test",
+            year=2026,
+        )
+        instance = PayloadInstance(
+            payload=payload,
+            rendered="t",
+            delivery_vector=DeliveryVector.DIRECT,
+        )
+        result = await _send_one_with_retry(StubAdapter(), instance, max_retries=-1, retry_backoff_seconds=0.01)
+        assert result.error is not None
+
+    async def test_retryable_error_does_retry(self) -> None:
+        call_count = 0
+
+        class TransientAdapter(BaseAdapter):
+            name = "transient"
+
+            @override
+            async def send_payload(
+                self,
+                payload: PayloadInstance,
+                context: dict[str, Any] | None = None,
+            ) -> AttackResult:
+                nonlocal call_count
+                call_count += 1
+                if call_count <= 2:
+                    raise ConnectionError("connection refused")
+                return AttackResult(payload_instance=payload, raw_output="ok")
+
+        adapter = TransientAdapter()
+        result = await run_scan(
+            adapter,
+            attacks=[SimpleAttack()],
+            scorers=[],
+            goal="test",
+            max_concurrent=5,
+            max_retries=3,
+            retry_backoff_seconds=0.01,
+        )
+        assert result.results[0].error is None
+        assert result.results[0].raw_output == "ok"
+        assert call_count == 3
