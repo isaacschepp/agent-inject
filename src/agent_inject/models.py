@@ -115,7 +115,7 @@ class EscapeConfig:
         return single * self.escape_times
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class PayloadInstance:
     """A fully resolved payload ready for delivery."""
 
@@ -142,7 +142,7 @@ class ToolCall:
         object.__setattr__(self, "arguments", types.MappingProxyType(dict(self.arguments)))
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class AttackResult:
     """Result of executing a single attack against a target agent.
 
