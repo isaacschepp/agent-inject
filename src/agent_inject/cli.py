@@ -136,16 +136,25 @@ async def _async_scan(
     scorers = _create_scorers(config)
 
     async with adapter:
-        result = await run_scan(
-            adapter,
-            attacks=resolved_attacks,
-            scorers=scorers,
-            goal=goal,
-            max_concurrent=config.engine.max_concurrent,
-            max_retries=config.engine.max_retries,
-            retry_backoff_seconds=config.engine.retry_backoff_seconds,
-            parallel_scoring=config.engine.parallel_scoring,
-        )
+        if config.output.verbose:
+            result = await _scan_with_progress(
+                adapter,
+                resolved_attacks,
+                scorers,
+                goal,
+                config,
+            )
+        else:
+            result = await run_scan(
+                adapter,
+                attacks=resolved_attacks,
+                scorers=scorers,
+                goal=goal,
+                max_concurrent=config.engine.max_concurrent,
+                max_retries=config.engine.max_retries,
+                retry_backoff_seconds=config.engine.retry_backoff_seconds,
+                parallel_scoring=config.engine.parallel_scoring,
+            )
 
     output.write_text(json.dumps(dataclasses.asdict(result), indent=2, default=_json_default))  # noqa: ASYNC240
     console.print(
@@ -154,6 +163,56 @@ async def _async_scan(
         f"in {result.duration_seconds}s"
     )
     console.print(f"Results written to {output}")
+
+
+async def _scan_with_progress(
+    adapter: BaseAdapter,
+    attacks: list[Any],
+    scorers: list[BaseScorer],
+    goal: str,
+    config: AgentInjectConfig,
+) -> Any:
+    """Run scan with a Rich progress bar updated via ``on_progress``."""
+    from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeRemainingColumn
+
+    from agent_inject.engine import ScanProgress, run_scan
+
+    completed = 0
+
+    def _update_progress(p: ScanProgress) -> None:
+        nonlocal completed
+        completed += 1
+        asr = p.successful_so_far / completed * 100 if completed > 0 else 0
+        task_progress.update(
+            task_id,
+            completed=completed,
+            total=p.total,
+            description=f"[cyan]{p.successful_so_far} succeeded  ASR {asr:.1f}%[/cyan]",
+        )
+
+    with Progress(
+        TextColumn("[bold blue]Scanning[/bold blue]"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TimeRemainingColumn(),
+        TextColumn("{task.description}"),
+        console=console,
+        transient=True,
+    ) as task_progress:
+        task_id = task_progress.add_task("Scanning...", total=None)
+        result = await run_scan(
+            adapter,
+            attacks=attacks,
+            scorers=scorers,
+            goal=goal,
+            max_concurrent=config.engine.max_concurrent,
+            max_retries=config.engine.max_retries,
+            retry_backoff_seconds=config.engine.retry_backoff_seconds,
+            parallel_scoring=config.engine.parallel_scoring,
+            on_progress=_update_progress,
+        )
+    return result  # noqa: RET504 — must exit Progress context before returning
 
 
 def _json_default(obj: object) -> object:

@@ -68,7 +68,16 @@ class TestScan:
         assert "No attacks" in _strip(result.stdout)
 
     def test_verbose_output(self) -> None:
-        """Cover verbose console prints in _async_scan."""
+        """Cover verbose console prints and Rich progress bar in _async_scan."""
+        from agent_inject.engine import ScanProgress
+        from agent_inject.models import (
+            AttackResult,
+            DeliveryVector,
+            Payload,
+            PayloadInstance,
+            PayloadTier,
+            TargetOutcome,
+        )
 
         @register_attack
         class _VerboseTestAttack(FixedJailbreakAttack):
@@ -79,15 +88,42 @@ class TestScan:
         mock_adapter.__aenter__ = AsyncMock(return_value=mock_adapter)
         mock_adapter.__aexit__ = AsyncMock(return_value=None)
 
+        payload = Payload(
+            id="t",
+            template="t",
+            tier=PayloadTier.CLASSIC,
+            delivery_vectors=(DeliveryVector.DIRECT,),
+            target_outcomes=(TargetOutcome.GOAL_HIJACKING,),
+            source="test",
+            year=2026,
+        )
+        instance = PayloadInstance(payload=payload, rendered="t", delivery_vector=DeliveryVector.DIRECT)
+        attack_result = AttackResult(payload_instance=instance, raw_output="ok")
+
         mock_result = AsyncMock()
-        mock_result.successful_attacks = 0
-        mock_result.total_payloads = 0
+        mock_result.successful_attacks = 1
+        mock_result.total_payloads = 1
         mock_result.duration_seconds = 0.1
+
+        async def _fake_run_scan(*args: object, **kwargs: object) -> object:
+            on_progress = kwargs.get("on_progress")
+            if on_progress:
+                on_progress(
+                    ScanProgress(
+                        result=attack_result,
+                        scores=(),
+                        index=0,
+                        total=1,
+                        elapsed_seconds=0.05,
+                        successful_so_far=1,
+                    )
+                )
+            return mock_result
 
         try:
             with (
                 patch("agent_inject.cli._create_adapter", return_value=mock_adapter),
-                patch("agent_inject.engine.run_scan", new_callable=AsyncMock, return_value=mock_result),
+                patch("agent_inject.engine.run_scan", side_effect=_fake_run_scan),
             ):
                 result = runner.invoke(
                     app,
