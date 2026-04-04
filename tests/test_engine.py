@@ -9,6 +9,7 @@ from typing import Any, ClassVar, override
 
 from agent_inject.attacks.base import FixedJailbreakAttack
 from agent_inject.engine import (
+    ScanProgress,
     ScanResult,
     _backoff_delay,
     _is_retryable,
@@ -120,8 +121,8 @@ class TestRunScan:
         assert result.total_payloads == 1
         assert result.successful_attacks == 0
 
-    async def test_on_result_callback(self) -> None:
-        callback_results: list[AttackResult] = []
+    async def test_on_progress_callback(self) -> None:
+        progress_events: list[ScanProgress] = []
         adapter = StubAdapter()
         await run_scan(
             adapter,
@@ -129,9 +130,17 @@ class TestRunScan:
             scorers=[AlwaysPassScorer()],
             goal="test",
             max_concurrent=5,
-            on_result=callback_results.append,
+            on_progress=progress_events.append,
         )
-        assert len(callback_results) == 1
+        assert len(progress_events) == 1
+        p = progress_events[0]
+        assert isinstance(p, ScanProgress)
+        assert p.total == 1
+        assert p.index == 0
+        assert p.successful_so_far == 1
+        assert p.elapsed_seconds >= 0
+        assert p.result.attack_success is True
+        assert len(p.scores) == 1
 
     async def test_multiple_attacks(self) -> None:
         adapter = StubAdapter()
@@ -486,14 +495,14 @@ class TestInterleavedPipeline:
         assert result.results[0].payload_instance.index == 0
         assert result.results[1].payload_instance.index == 1
 
-    async def test_on_result_called_per_payload(self) -> None:
-        """on_result fires once per payload in interleaved mode."""
+    async def test_on_progress_called_per_payload(self) -> None:
+        """on_progress fires once per payload in interleaved mode."""
 
         class ThreeAttack(FixedJailbreakAttack):
             name = "three"
             _templates: ClassVar[list[str]] = ["a: {goal}", "b: {goal}", "c: {goal}"]
 
-        callback_results: list[AttackResult] = []
+        progress_events: list[ScanProgress] = []
         adapter = StubAdapter()
         await run_scan(
             adapter,
@@ -501,9 +510,11 @@ class TestInterleavedPipeline:
             scorers=[AlwaysPassScorer()],
             goal="test",
             max_concurrent=5,
-            on_result=callback_results.append,
+            on_progress=progress_events.append,
         )
-        assert len(callback_results) == 3
+        assert len(progress_events) == 3
+        # All events should share the same total
+        assert all(p.total == 3 for p in progress_events)
 
     async def test_delivery_failure_does_not_cancel_siblings(self) -> None:
         """A failing delivery should not prevent other payloads from completing."""
@@ -803,3 +814,82 @@ class TestDifferentiatedRetry:
         assert result.results[0].error is None
         assert result.results[0].raw_output == "ok"
         assert call_count == 3
+
+
+class TestScanProgress:
+    """Tests for ScanProgress dataclass and on_progress callback (#512)."""
+
+    async def test_progress_fields_populated(self) -> None:
+        progress_events: list[ScanProgress] = []
+        adapter = StubAdapter()
+        await run_scan(
+            adapter,
+            attacks=[SimpleAttack()],
+            scorers=[AlwaysPassScorer(), NeverPassScorer()],
+            goal="test",
+            max_concurrent=5,
+            on_progress=progress_events.append,
+        )
+        assert len(progress_events) == 1
+        p = progress_events[0]
+        assert p.index == 0
+        assert p.total == 1
+        assert p.elapsed_seconds >= 0
+        assert p.successful_so_far == 1
+        assert p.result.attack_success is True
+        assert len(p.scores) == 2
+        assert p.scores[0].scorer_name == "always_pass"
+        assert p.scores[1].scorer_name == "never_pass"
+
+    async def test_progress_with_no_scorers(self) -> None:
+        progress_events: list[ScanProgress] = []
+        adapter = StubAdapter()
+        await run_scan(
+            adapter,
+            attacks=[SimpleAttack()],
+            scorers=[],
+            goal="test",
+            max_concurrent=5,
+            on_progress=progress_events.append,
+        )
+        assert len(progress_events) == 1
+        assert progress_events[0].scores == ()
+        assert progress_events[0].successful_so_far == 0
+
+    async def test_async_callback_awaited(self) -> None:
+        called = False
+
+        async def async_handler(p: ScanProgress) -> None:
+            nonlocal called
+            called = True
+
+        adapter = StubAdapter()
+        await run_scan(
+            adapter,
+            attacks=[SimpleAttack()],
+            scorers=[],
+            goal="test",
+            max_concurrent=5,
+            on_progress=async_handler,
+        )
+        assert called is True
+
+    async def test_multiple_payloads_progress_totals(self) -> None:
+        class TwoAttack(FixedJailbreakAttack):
+            name = "two"
+            _templates: ClassVar[list[str]] = ["a: {goal}", "b: {goal}"]
+
+        progress_events: list[ScanProgress] = []
+        adapter = StubAdapter()
+        await run_scan(
+            adapter,
+            attacks=[TwoAttack()],
+            scorers=[AlwaysPassScorer()],
+            goal="test",
+            max_concurrent=5,
+            on_progress=progress_events.append,
+        )
+        assert len(progress_events) == 2
+        assert all(p.total == 2 for p in progress_events)
+        indices = {p.index for p in progress_events}
+        assert indices == {0, 1}

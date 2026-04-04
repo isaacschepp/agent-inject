@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import email.utils
+import inspect
 import logging
 import random
 import time
@@ -24,6 +25,22 @@ if TYPE_CHECKING:
     from agent_inject.scorers.base import BaseScorer
 
 _logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class ScanProgress:
+    """Progress update emitted after each payload is delivered and scored.
+
+    Fired in completion order (non-deterministic in the interleaved
+    pipeline).  Use ``index`` to reconstruct payload-generation order.
+    """
+
+    result: AttackResult
+    scores: tuple[Score, ...]
+    index: int
+    total: int
+    elapsed_seconds: float
+    successful_so_far: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,7 +86,7 @@ async def run_scan(
     max_retries: int = 3,
     retry_backoff_seconds: float = 2.0,
     parallel_scoring: bool = True,
-    on_result: Callable[[AttackResult], Any] | None = None,
+    on_progress: Callable[[ScanProgress], Any] | None = None,
 ) -> ScanResult:
     """Run a complete scan: generate -> evade -> deliver -> score.
 
@@ -84,7 +101,9 @@ async def run_scan(
         max_retries: Maximum retry attempts per payload on transient failure.
         retry_backoff_seconds: Base delay (seconds) between retries (exponential backoff).
         parallel_scoring: Run scorers in parallel per result (True) or sequentially (False).
-        on_result: Optional callback invoked after each result is scored.
+        on_progress: Optional callback invoked after each result is scored.
+            Receives a :class:`ScanProgress` with the result, scores, and
+            running metrics.  Accepts both sync and async callables.
 
     Returns:
         ScanResult with all results and scores.
@@ -126,7 +145,9 @@ async def run_scan(
         max_retries=max_retries,
         retry_backoff_seconds=retry_backoff_seconds,
         parallel_scoring=parallel_scoring,
-        on_result=on_result,
+        total=len(instances),
+        start=start,
+        on_progress=on_progress,
     )
 
     duration = time.monotonic() - start
@@ -295,7 +316,9 @@ async def _deliver_and_score_all(
     max_retries: int,
     retry_backoff_seconds: float,
     parallel_scoring: bool,
-    on_result: Callable[[AttackResult], Any] | None,
+    total: int,
+    start: float,
+    on_progress: Callable[[ScanProgress], Any] | None,
 ) -> tuple[list[AttackResult], list[tuple[AttackResult, tuple[Score, ...]]], int]:
     """Deliver payloads and score results in an interleaved pipeline.
 
@@ -314,6 +337,7 @@ async def _deliver_and_score_all(
 
     async def _process_one(instance: PayloadInstance) -> None:
         nonlocal successful
+        result_scores: tuple[Score, ...] = ()
         try:
             # --- Delivery phase (bounded by semaphore) ---
             async with delivery_sem:
@@ -322,13 +346,13 @@ async def _deliver_and_score_all(
 
             # --- Scoring phase (outside semaphore — doesn't block delivery) ---
             if parallel_scoring and len(scorers) > 1:
-                result_scores = list(
+                result_scores = tuple(
                     await asyncio.gather(
                         *(_safe_score(scorer, result) for scorer in scorers),
                     )
                 )
             else:
-                result_scores = [await _safe_score(scorer, result) for scorer in scorers]
+                result_scores = tuple([await _safe_score(scorer, result) for scorer in scorers])
 
             if any(s.passed for s in result_scores):
                 result = replace(result, attack_success=True)
@@ -336,15 +360,25 @@ async def _deliver_and_score_all(
 
             # Atomic appends (no await between reads/writes of shared state).
             raw_results.append(result)
-            scored.append((result, tuple(result_scores)))
+            scored.append((result, result_scores))
         except Exception as exc:  # noqa: BLE001 — prevent TaskGroup cancellation cascade
             _logger.warning("Pipeline failed for %s: %s", instance.payload.id, exc)
             result = AttackResult(payload_instance=instance, error=str(exc))
             raw_results.append(result)
             scored.append((result, ()))
 
-        if on_result:
-            on_result(result)
+        if on_progress:
+            progress = ScanProgress(
+                result=result,
+                scores=result_scores,
+                index=instance.index,
+                total=total,
+                elapsed_seconds=round(time.monotonic() - start, 2),
+                successful_so_far=successful,
+            )
+            ret = on_progress(progress)
+            if inspect.isawaitable(ret):
+                await ret
 
     async with asyncio.TaskGroup() as tg:
         for inst in instances:
