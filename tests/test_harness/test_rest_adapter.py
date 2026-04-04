@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import httpx
+import pytest
 import respx
 
 from agent_inject.harness.adapters.rest import RestAdapter
@@ -31,19 +32,49 @@ class TestSendPayload:
         assert "session_id" in body
 
     @respx.mock
-    async def test_http_error(self, sample_payload_instance: PayloadInstance) -> None:
+    async def test_server_error_raises(self, sample_payload_instance: PayloadInstance) -> None:
+        """5xx errors propagate so the engine can retry them."""
         respx.post("https://agent.test/").mock(return_value=httpx.Response(500, text="Internal Server Error"))
+        adapter = RestAdapter("https://agent.test/")
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            await adapter.send_payload(sample_payload_instance)
+        assert exc_info.value.response.status_code == 500
+
+    @respx.mock
+    async def test_rate_limit_raises(self, sample_payload_instance: PayloadInstance) -> None:
+        """429 errors propagate so the engine can respect Retry-After."""
+        respx.post("https://agent.test/").mock(
+            return_value=httpx.Response(429, text="Too Many Requests", headers={"retry-after": "5"})
+        )
+        adapter = RestAdapter("https://agent.test/")
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            await adapter.send_payload(sample_payload_instance)
+        assert exc_info.value.response.status_code == 429
+
+    @respx.mock
+    async def test_client_error_returns_error_result(self, sample_payload_instance: PayloadInstance) -> None:
+        """4xx client errors (not 429) return error AttackResult without raising."""
+        respx.post("https://agent.test/").mock(return_value=httpx.Response(400, text="Bad Request"))
         adapter = RestAdapter("https://agent.test/")
         result = await adapter.send_payload(sample_payload_instance)
         assert result.error is not None
         assert result.raw_output == ""
 
     @respx.mock
-    async def test_connection_error(self, sample_payload_instance: PayloadInstance) -> None:
-        respx.post("https://agent.test/").mock(side_effect=httpx.ConnectError("refused"))
+    async def test_not_found_returns_error_result(self, sample_payload_instance: PayloadInstance) -> None:
+        """404 returns error result, not an exception."""
+        respx.post("https://agent.test/").mock(return_value=httpx.Response(404, text="Not Found"))
         adapter = RestAdapter("https://agent.test/")
         result = await adapter.send_payload(sample_payload_instance)
         assert result.error is not None
+
+    @respx.mock
+    async def test_connection_error_raises(self, sample_payload_instance: PayloadInstance) -> None:
+        """Transport errors propagate for engine retry."""
+        respx.post("https://agent.test/").mock(side_effect=httpx.ConnectError("refused"))
+        adapter = RestAdapter("https://agent.test/")
+        with pytest.raises(httpx.ConnectError):
+            await adapter.send_payload(sample_payload_instance)
 
     @respx.mock
     async def test_custom_fields(self, sample_payload_instance: PayloadInstance) -> None:
