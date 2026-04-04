@@ -51,8 +51,8 @@ class TestParseModelSpec:
 
 
 class TestLlmJudgeScorer:
-    def _make_scorer(self) -> LlmJudgeScorer:
-        config = JudgeConfig(enabled=True, model="openai:gpt-4o-mini")
+    def _make_scorer(self, **overrides: object) -> LlmJudgeScorer:
+        config = JudgeConfig(enabled=True, model="openai:gpt-4o-mini", **overrides)
         return LlmJudgeScorer(config, api_key="sk-test")
 
     async def test_heuristic_fast_path_skips_llm(self) -> None:
@@ -170,3 +170,18 @@ class TestLlmJudgeScorer:
         scorer = LlmJudgeScorer(JudgeConfig(enabled=True, model="groq:llama-3"), api_key="sk-test")
         with pytest.raises(ValueError, match="Unsupported judge provider"):
             await scorer._invoke_llm([{"role": "user", "content": "test"}])
+
+    def test_semaphore_uses_config_max_concurrent(self) -> None:
+        """Semaphore limit should come from JudgeConfig.max_concurrent."""
+        scorer = self._make_scorer(max_concurrent=7)
+        assert scorer._semaphore._value == 7
+
+    def test_default_semaphore_is_3(self) -> None:
+        scorer = self._make_scorer()
+        assert scorer._semaphore._value == 3
+
+    def test_clients_initially_none(self) -> None:
+        """SDK clients should be lazily initialized, not created in __init__."""
+        scorer = self._make_scorer()
+        assert scorer._openai_client is None
+        assert scorer._anthropic_client is None

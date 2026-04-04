@@ -78,7 +78,9 @@ class LlmJudgeScorer(BaseScorer):
         self._config = judge_config
         self._provider, self._model = _parse_model_spec(judge_config.model)
         self._api_key = api_key
-        self._semaphore = asyncio.Semaphore(3)
+        self._semaphore = asyncio.Semaphore(judge_config.max_concurrent)
+        self._openai_client: Any = None
+        self._anthropic_client: Any = None
 
     @override
     async def score(self, result: AttackResult) -> Score:
@@ -159,10 +161,11 @@ class LlmJudgeScorer(BaseScorer):
         raise ValueError(msg)
 
     async def _call_openai(self, messages: list[dict[str, str]]) -> str:  # pragma: no cover — requires openai SDK
-        from openai import AsyncOpenAI
+        if self._openai_client is None:
+            from openai import AsyncOpenAI
 
-        client = AsyncOpenAI(api_key=self._api_key)
-        resp = await client.chat.completions.create(
+            self._openai_client = AsyncOpenAI(api_key=self._api_key)
+        resp = await self._openai_client.chat.completions.create(
             model=self._model,
             messages=messages,
             temperature=self._config.temperature,
@@ -172,13 +175,13 @@ class LlmJudgeScorer(BaseScorer):
         return resp.choices[0].message.content or ""
 
     async def _call_anthropic(self, messages: list[dict[str, str]]) -> str:  # pragma: no cover — requires anthropic SDK
-        from anthropic import AsyncAnthropic
+        if self._anthropic_client is None:
+            from anthropic import AsyncAnthropic
 
+            self._anthropic_client = AsyncAnthropic(api_key=self._api_key)
         system_msg = next((m["content"] for m in messages if m["role"] == "system"), "")
         user_msgs = [m for m in messages if m["role"] != "system"]
-
-        client = AsyncAnthropic(api_key=self._api_key)
-        resp = await client.messages.create(
+        resp = await self._anthropic_client.messages.create(
             model=self._model,
             system=system_msg,
             messages=user_msgs,

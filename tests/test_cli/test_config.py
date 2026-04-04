@@ -46,6 +46,7 @@ class TestDefaults:
         assert cfg.scoring.judge.model == "openai:gpt-4o-mini"
         assert cfg.scoring.judge.temperature == 0.0
         assert cfg.scoring.judge.max_tokens == 1024
+        assert cfg.scoring.judge.max_concurrent == 3
 
     def test_output_dir_is_path(self) -> None:
         cfg = AgentInjectConfig()

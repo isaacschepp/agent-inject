@@ -136,6 +136,7 @@ class JudgeConfig(BaseModel, frozen=True):
         default=0.0, ge=0.0, le=2.0, description="Judge model temperature (0.0 for deterministic)."
     )
     max_tokens: int = Field(default=1024, ge=1, description="Maximum tokens for judge model responses.")
+    max_concurrent: int = Field(default=3, ge=1, le=20, description="Maximum concurrent LLM judge API calls.")
 
 
 class ScoringConfig(BaseModel, frozen=True):
