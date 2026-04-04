@@ -68,3 +68,55 @@ class TestScore:
         score = Score(scorer_name="test", passed=True, value=1.0)
         with pytest.raises(AttributeError):
             score.passed = False  # type: ignore[misc]
+
+
+class TestDeepImmutability:
+    """Dict fields on frozen dataclasses must be truly immutable (#513)."""
+
+    def test_attack_result_environment_diff_immutable(self, sample_payload_instance: PayloadInstance) -> None:
+        result = AttackResult(payload_instance=sample_payload_instance, environment_diff={"key": "val"})
+        with pytest.raises(TypeError):
+            result.environment_diff["key"] = "mutated"  # type: ignore[index]
+
+    def test_attack_result_scorer_details_immutable(self, sample_payload_instance: PayloadInstance) -> None:
+        result = AttackResult(payload_instance=sample_payload_instance, scorer_details={"key": "val"})
+        with pytest.raises(TypeError):
+            result.scorer_details["key"] = "mutated"  # type: ignore[index]
+
+    def test_score_details_immutable(self) -> None:
+        score = Score(scorer_name="test", passed=True, value=1.0, details={"key": "val"})
+        with pytest.raises(TypeError):
+            score.details["key"] = "mutated"  # type: ignore[index]
+
+    def test_tool_call_arguments_immutable(self) -> None:
+        tc = ToolCall(tool_name="test", arguments={"path": "/etc/passwd"})
+        with pytest.raises(TypeError):
+            tc.arguments["path"] = "mutated"  # type: ignore[index]
+
+    def test_read_access_still_works(self, sample_payload_instance: PayloadInstance) -> None:
+        result = AttackResult(
+            payload_instance=sample_payload_instance,
+            environment_diff={"a": 1, "b": 2},
+            scorer_details={"x": "y"},
+        )
+        assert result.environment_diff["a"] == 1
+        assert result.environment_diff.get("b") == 2
+        assert list(result.environment_diff.keys()) == ["a", "b"]
+        assert result.scorer_details["x"] == "y"
+
+    def test_construction_with_plain_dict_works(self, sample_payload_instance: PayloadInstance) -> None:
+        """Callers can still pass plain dicts — __post_init__ wraps them."""
+        result = AttackResult(
+            payload_instance=sample_payload_instance,
+            environment_diff={"k": "v"},
+        )
+        assert result.environment_diff["k"] == "v"
+
+    def test_replace_produces_new_immutable(self, sample_payload_instance: PayloadInstance) -> None:
+        from dataclasses import replace
+
+        original = AttackResult(payload_instance=sample_payload_instance, environment_diff={"a": 1})
+        modified = replace(original, environment_diff={"b": 2})
+        assert modified.environment_diff["b"] == 2
+        with pytest.raises(TypeError):
+            modified.environment_diff["b"] = "mutated"  # type: ignore[index]

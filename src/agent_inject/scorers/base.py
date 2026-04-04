@@ -375,8 +375,10 @@ class RefusalAnalysisScorer(BaseScorer):
 
 
 def _flatten_to_str(obj: object) -> str:
-    """Recursively flatten a dict/list to a searchable string."""
-    if isinstance(obj, dict):
+    """Recursively flatten a dict/list/Mapping to a searchable string."""
+    from collections.abc import Mapping
+
+    if isinstance(obj, Mapping):
         return " ".join(_flatten_to_str(v) for v in obj.values())  # pyright: ignore[reportUnknownArgumentType,reportUnknownVariableType]
     if isinstance(obj, list):
         return " ".join(_flatten_to_str(v) for v in obj)  # pyright: ignore[reportUnknownArgumentType,reportUnknownVariableType]
