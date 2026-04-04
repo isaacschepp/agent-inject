@@ -100,12 +100,17 @@ class TestScan:
         instance = PayloadInstance(payload=payload, rendered="t", delivery_vector=DeliveryVector.DIRECT)
         attack_result = AttackResult(payload_instance=instance, raw_output="ok")
 
-        mock_result = AsyncMock()
-        mock_result.successful_attacks = 1
-        mock_result.total_payloads = 1
-        mock_result.duration_seconds = 0.1
+        from agent_inject.engine import ScanResult
 
-        async def _fake_run_scan(*args: object, **kwargs: object) -> object:
+        scan_result = ScanResult(
+            results=(attack_result,),
+            scores=((attack_result, ()),),
+            total_payloads=1,
+            successful_attacks=1,
+            duration_seconds=0.1,
+        )
+
+        async def _fake_run_scan(*args: object, **kwargs: object) -> ScanResult:
             on_progress = kwargs.get("on_progress")
             if on_progress:
                 on_progress(
@@ -118,12 +123,12 @@ class TestScan:
                         successful_so_far=1,
                     )
                 )
-            return mock_result
+            return scan_result
 
         try:
             with (
                 patch("agent_inject.cli._create_adapter", return_value=mock_adapter),
-                patch("agent_inject.engine.run_scan", side_effect=_fake_run_scan),
+                patch("agent_inject.engine.run_scan", new=_fake_run_scan),
             ):
                 result = runner.invoke(
                     app,
