@@ -30,6 +30,7 @@ class TestDefaults:
         assert cfg.engine.max_backtracks == 5
         assert cfg.engine.max_retries == 3
         assert cfg.engine.retry_backoff_seconds == 2.0
+        assert cfg.engine.parallel_scoring is True
         # OutputConfig
         assert cfg.output.dir == Path("./results")
         assert cfg.output.format == "json"
