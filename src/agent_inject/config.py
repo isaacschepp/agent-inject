@@ -136,6 +136,7 @@ class JudgeConfig(BaseModel, frozen=True):
         default=0.0, ge=0.0, le=2.0, description="Judge model temperature (0.0 for deterministic)."
     )
     max_tokens: int = Field(default=1024, ge=1, description="Maximum tokens for judge model responses.")
+    max_concurrent: int = Field(default=3, ge=1, le=20, description="Maximum concurrent LLM judge API calls.")
 
 
 class ScoringConfig(BaseModel, frozen=True):
@@ -231,13 +232,28 @@ class AgentInjectConfig(BaseSettings):
 
 
 def _known_env_vars() -> set[str]:
-    """Build the set of valid ``AGENT_INJECT_*`` env var names from model fields."""
+    """Build the set of valid ``AGENT_INJECT_*`` env var names from model fields.
+
+    Recurses into nested ``BaseModel`` sub-models so that deeply nested
+    fields like ``AGENT_INJECT_SCORING__JUDGE__MAX_CONCURRENT`` are
+    recognised.
+    """
     known: set[str] = set()
+
+    def _walk(model_cls: type[BaseModel], prefix: str) -> None:
+        for field_name, field_info in model_cls.model_fields.items():
+            env_key = f"{prefix}{field_name.upper()}"
+            annotation = field_info.annotation
+            # If the annotation is itself a BaseModel subclass, recurse.
+            if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+                _walk(annotation, f"{env_key}__")
+            else:
+                known.add(env_key)
+
     for top_name, top_info in AgentInjectConfig.model_fields.items():
         sub_type = top_info.annotation
-        # All top-level fields are BaseModel sub-models with model_fields.
-        for sub_name in sub_type.model_fields:  # type: ignore[union-attr]
-            known.add(f"{_ENV_PREFIX}{top_name.upper()}__{sub_name.upper()}")
+        if isinstance(sub_type, type) and issubclass(sub_type, BaseModel):  # pragma: no branch
+            _walk(sub_type, f"{_ENV_PREFIX}{top_name.upper()}__")
     return known
 
 
