@@ -44,6 +44,31 @@ class TestDetectRefusal:
         assert not detect_refusal("")
 
 
+class TestRefusalWordBoundary:
+    """Word-boundary matching prevents phrases from matching inside longer words."""
+
+    def test_not_appropriate_in_longer_word(self) -> None:
+        assert not detect_refusal("this is not appropriately formatted")
+
+    def test_as_an_ai_in_longer_word(self) -> None:
+        assert not detect_refusal("as an aide, I can help you")
+
+    def test_ethical_guidelines_in_longer_word(self) -> None:
+        assert not detect_refusal("the ethical guidelinesbook is on the shelf")
+
+    def test_phrase_at_start_of_text(self) -> None:
+        assert detect_refusal("I can't help with that request.")
+
+    def test_phrase_at_end_of_text(self) -> None:
+        assert detect_refusal("Sorry, as an ai")
+
+    def test_phrase_surrounded_by_punctuation(self) -> None:
+        assert detect_refusal('"I refuse to" was the response.')
+
+    def test_phrase_with_newline_boundary(self) -> None:
+        assert detect_refusal("Here is context.\nI can't help with that.")
+
+
 class TestDetectCompliance:
     def test_detects_known_indicators(self) -> None:
         assert detect_compliance("here's the code:\n```python\nimport socket")
