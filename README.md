@@ -18,7 +18,7 @@
 | src/agent\_inject/attacks/rag/\_\_init\_\_.py            |        0 |        0 |        0 |        0 |     100.00% |           |
 | src/agent\_inject/attacks/registry.py                    |       50 |        0 |       12 |        0 |     100.00% |           |
 | src/agent\_inject/cli.py                                 |      106 |        0 |       22 |        0 |     100.00% |           |
-| src/agent\_inject/config.py                              |      106 |        0 |       22 |        0 |     100.00% |           |
+| src/agent\_inject/config.py                              |      114 |        0 |       26 |        0 |     100.00% |           |
 | src/agent\_inject/detection.py                           |       48 |        0 |        6 |        0 |     100.00% |           |
 | src/agent\_inject/engine.py                              |      109 |        0 |       30 |        0 |     100.00% |           |
 | src/agent\_inject/evasion/\_\_init\_\_.py                |        2 |        0 |        0 |        0 |     100.00% |           |
@@ -35,11 +35,11 @@
 | src/agent\_inject/reports/\_\_init\_\_.py                |        0 |        0 |        0 |        0 |     100.00% |           |
 | src/agent\_inject/scorers/\_\_init\_\_.py                |        3 |        0 |        0 |        0 |     100.00% |           |
 | src/agent\_inject/scorers/base.py                        |      189 |        0 |       72 |        0 |     100.00% |           |
-| src/agent\_inject/scorers/llm\_judge.py                  |       67 |        0 |       10 |        0 |     100.00% |           |
+| src/agent\_inject/scorers/llm\_judge.py                  |       68 |        0 |       10 |        0 |     100.00% |           |
 | src/agent\_inject/strategies/\_\_init\_\_.py             |        2 |        0 |        0 |        0 |     100.00% |           |
 | src/agent\_inject/strategies/base.py                     |       49 |        0 |        2 |        0 |     100.00% |           |
 | src/agent\_inject/strategies/crescendo.py                |       49 |        0 |        8 |        0 |     100.00% |           |
-| **TOTAL**                                                | **1178** |    **0** |  **222** |    **0** | **100.00%** |           |
+| **TOTAL**                                                | **1187** |    **0** |  **226** |    **0** | **100.00%** |           |
 
 
 ## Setup coverage badge
