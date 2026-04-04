@@ -270,6 +270,16 @@ class ExplodingScorer(BaseScorer):
         raise RuntimeError(msg)
 
 
+class NoneReturningScorer(BaseScorer):
+    """Scorer that returns None instead of Score (simulates missing return)."""
+
+    name = "none_returner"
+
+    @override
+    async def score(self, result: AttackResult) -> Score:
+        pass  # type: ignore[return-value] — intentionally returns None
+
+
 class TestParallelScoring:
     """Tests for parallel scorer execution (#509)."""
 
@@ -371,6 +381,40 @@ class TestScorerErrorIsolation:
         score = await _safe_score(exploding, sample_attack_result)
         assert score.duration_seconds is not None
         assert score.duration_seconds >= 0
+
+    async def test_safe_score_handles_none_returning_scorer(self, sample_attack_result: AttackResult) -> None:
+        """Regression: a scorer returning None must not escape _safe_score.
+
+        If _safe_score has code after the try/except (e.g. replace() on
+        the result), a None return causes TypeError that escapes the
+        error boundary and drops sibling scorer results.  This test
+        catches that structural bug.
+        """
+        scorer = NoneReturningScorer()
+        score = await _safe_score(scorer, sample_attack_result)
+        assert isinstance(score, Score)
+        assert score.passed is False
+        assert score.details.get("error") is True
+        assert score.duration_seconds is not None
+
+    async def test_none_returning_scorer_does_not_kill_siblings(self) -> None:
+        """Regression: NoneReturningScorer must not prevent other scorers from completing."""
+        adapter = StubAdapter()
+        result = await run_scan(
+            adapter,
+            attacks=[SimpleAttack()],
+            scorers=[AlwaysPassScorer(), NoneReturningScorer(), NeverPassScorer()],
+            goal="test",
+            max_concurrent=5,
+            parallel_scoring=True,
+        )
+        scores = result.scores[0][1]
+        assert len(scores) == 3
+        assert scores[0].scorer_name == "always_pass"
+        assert scores[0].passed is True
+        assert scores[1].scorer_name == "none_returner"
+        assert scores[1].passed is False
+        assert scores[2].scorer_name == "never_pass"
 
     async def test_exploding_scorer_does_not_kill_siblings(self) -> None:
         adapter = StubAdapter()
