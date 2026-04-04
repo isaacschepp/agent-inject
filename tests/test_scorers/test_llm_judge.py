@@ -180,9 +180,41 @@ class TestLlmJudgeScorer:
         scorer = self._make_scorer()
         assert scorer._max_concurrent == 3
 
-    def test_client_created_eagerly(self) -> None:
-        """SDK client should be created in __init__, not lazily."""
+    def test_require_client_raises_with_import_error(self) -> None:
+        """_require_client raises RuntimeError chaining the stored ImportError."""
+        import pytest
+
         scorer = self._make_scorer()
-        # _client is set in __init__ (may be None for unsupported providers in test,
-        # but the attribute itself must exist).
+        # SDK not installed in test env, so _client is None and _client_error is set.
+        assert scorer._client is None
+        assert scorer._client_error is not None
+        with pytest.raises(RuntimeError, match="not installed"):
+            scorer._require_client()
+
+    def test_require_client_returns_client_when_set(self) -> None:
+        """_require_client returns the client when it was successfully created."""
+        scorer = self._make_scorer()
+        scorer._client = object()  # simulate successful SDK init
+        scorer._client_error = None
+        assert scorer._require_client() is scorer._client
+
+    def test_require_client_raises_for_unsupported_provider(self) -> None:
+        """_require_client raises RuntimeError for unsupported providers with no ImportError."""
+        import pytest
+
+        scorer = LlmJudgeScorer(JudgeConfig(enabled=True, model="groq:llama-3"), api_key="sk-test")
+        assert scorer._client is None
+        assert scorer._client_error is None
+        with pytest.raises(RuntimeError, match="No client available"):
+            scorer._require_client()
+
+    def test_client_created_eagerly(self) -> None:
+        """_init_client is called during __init__, not deferred."""
+        from unittest.mock import patch
+
+        with patch.object(LlmJudgeScorer, "_init_client") as mock_init:
+            scorer = self._make_scorer()
+        mock_init.assert_called_once()
+        # _client is set in __init__ (None here because the OpenAI SDK is
+        # unavailable in the test environment and _init_client was mocked).
         assert hasattr(scorer, "_client")

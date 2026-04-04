@@ -80,7 +80,9 @@ class LlmJudgeScorer(BaseScorer):
         self._api_key = api_key
         self._semaphore = asyncio.Semaphore(judge_config.max_concurrent)
         self._max_concurrent = judge_config.max_concurrent
-        self._client: Any = self._create_client()
+        self._client: Any = None
+        self._client_error: ImportError | None = None
+        self._init_client()
 
     @override
     async def score(self, result: AttackResult) -> Score:
@@ -160,29 +162,39 @@ class LlmJudgeScorer(BaseScorer):
         msg = f"Unsupported judge provider: {self._provider!r}"
         raise ValueError(msg)
 
-    def _create_client(self) -> Any:
+    def _init_client(self) -> None:
         """Eagerly create the SDK client for the configured provider.
 
         Uses lazy module import (SDK loaded only for the provider in use)
         with eager client creation (no check-then-assign race possible).
-        Returns ``None`` if the SDK is not installed — the error surfaces
-        at call time via ``_call_judge``'s ``except Exception`` wrapper.
+        If the SDK is not installed, stores the ``ImportError`` and
+        re-raises it with context when the client is actually needed.
         """
         try:
             if self._provider == "openai":
                 from openai import AsyncOpenAI  # pragma: no cover — requires openai SDK
 
-                return AsyncOpenAI(api_key=self._api_key)  # pragma: no cover
-            if self._provider == "anthropic":
+                self._client = AsyncOpenAI(api_key=self._api_key)  # pragma: no cover
+            elif self._provider == "anthropic":
                 from anthropic import AsyncAnthropic  # pragma: no cover — requires anthropic SDK
 
-                return AsyncAnthropic(api_key=self._api_key)  # pragma: no cover
-        except ImportError:
-            _logger.debug("Provider SDK %r not installed; client deferred to call time", self._provider)
-        return None
+                self._client = AsyncAnthropic(api_key=self._api_key)  # pragma: no cover
+        except ImportError as exc:
+            self._client_error = exc
+
+    def _require_client(self) -> Any:
+        """Return the SDK client, raising if it was not created."""
+        if self._client is None:
+            if self._client_error is not None:
+                msg = f"Provider SDK for {self._provider!r} is not installed"
+                raise RuntimeError(msg) from self._client_error
+            msg = f"No client available for provider {self._provider!r}"
+            raise RuntimeError(msg)
+        return self._client
 
     async def _call_openai(self, messages: list[dict[str, str]]) -> str:  # pragma: no cover — requires openai SDK
-        resp = await self._client.chat.completions.create(
+        client = self._require_client()
+        resp = await client.chat.completions.create(
             model=self._model,
             messages=messages,
             temperature=self._config.temperature,
@@ -192,9 +204,10 @@ class LlmJudgeScorer(BaseScorer):
         return resp.choices[0].message.content or ""
 
     async def _call_anthropic(self, messages: list[dict[str, str]]) -> str:  # pragma: no cover — requires anthropic SDK
+        client = self._require_client()
         system_msg = next((m["content"] for m in messages if m["role"] == "system"), "")
         user_msgs = [m for m in messages if m["role"] != "system"]
-        resp = await self._client.messages.create(
+        resp = await client.messages.create(
             model=self._model,
             system=system_msg,
             messages=user_msgs,
