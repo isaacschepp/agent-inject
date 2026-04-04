@@ -154,7 +154,8 @@ ignore = [
 "tests/**/*.py" = [
     "S",       # security rules (test code uses hardcoded values, assert, etc.)
     "ARG",     # unused-arguments (stub implementations and fixtures)
-    "BLE",     # blind-except (testing exception handling)
+    # BLE (blind-except) intentionally NOT exempted — silent except in tests
+    # undermines test coverage.  Use per-line noqa: BLE001 with justification.
     "EM",      # error-message formatting (test assertions don't need extracted messages)
     "TRY",     # tryceratops (test exception patterns are intentionally simple)
     "PLW0108", # unnecessary-lambda (lambda stubs in test doubles)
