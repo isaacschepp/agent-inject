@@ -70,6 +70,21 @@ class TestScore:
             score.passed = False  # type: ignore[misc]
 
 
+class TestDeepcopyRegistration:
+    def test_registration_skipped_without_dispatch(self) -> None:
+        """Guard: _register_mapping_proxy_deepcopy handles missing _deepcopy_dispatch."""
+        import copy
+
+        from agent_inject.models import _register_mapping_proxy_deepcopy
+
+        saved = copy._deepcopy_dispatch
+        try:
+            del copy._deepcopy_dispatch  # type: ignore[attr-defined]
+            _register_mapping_proxy_deepcopy()  # should not raise
+        finally:
+            copy._deepcopy_dispatch = saved
+
+
 class TestDeepImmutability:
     """Dict fields on frozen dataclasses must be truly immutable (#513)."""
 
@@ -120,3 +135,13 @@ class TestDeepImmutability:
         assert modified.environment_diff["b"] == 2
         with pytest.raises(TypeError):
             modified.environment_diff["b"] = "mutated"  # type: ignore[index]
+
+    def test_original_dict_mutation_does_not_affect_instance(self, sample_payload_instance: PayloadInstance) -> None:
+        """Defensive copy: mutating the original dict after construction has no effect."""
+        original_dict: dict[str, int] = {"a": 1}
+        result = AttackResult(payload_instance=sample_payload_instance, environment_diff=original_dict)
+        original_dict["a"] = 999
+        original_dict["b"] = 2
+        # The dataclass should not see the mutation
+        assert result.environment_diff["a"] == 1
+        assert "b" not in result.environment_diff

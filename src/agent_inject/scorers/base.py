@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Mapping as _Mapping
 from typing import ClassVar, override
 
 from agent_inject.models import AttackResult, Score
@@ -376,9 +377,7 @@ class RefusalAnalysisScorer(BaseScorer):
 
 def _flatten_to_str(obj: object) -> str:
     """Recursively flatten a dict/list/Mapping to a searchable string."""
-    from collections.abc import Mapping
-
-    if isinstance(obj, Mapping):
+    if isinstance(obj, _Mapping):
         return " ".join(_flatten_to_str(v) for v in obj.values())  # pyright: ignore[reportUnknownArgumentType,reportUnknownVariableType]
     if isinstance(obj, list):
         return " ".join(_flatten_to_str(v) for v in obj)  # pyright: ignore[reportUnknownArgumentType,reportUnknownVariableType]

@@ -7,12 +7,10 @@ from __future__ import annotations
 
 import copy
 import types
+from collections.abc import Mapping  # noqa: TC003 — needed at runtime for get_type_hints()
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
+from typing import Any
 
 
 def _deepcopy_mapping_proxy(
@@ -23,8 +21,14 @@ def _deepcopy_mapping_proxy(
     return copy.deepcopy(dict(proxy), memo)
 
 
+def _register_mapping_proxy_deepcopy() -> None:
+    """Register deepcopy support for ``MappingProxyType`` when supported by ``copy``."""
+    if hasattr(copy, "_deepcopy_dispatch"):
+        copy._deepcopy_dispatch[types.MappingProxyType] = _deepcopy_mapping_proxy  # type: ignore[index]  # noqa: SLF001
+
+
 # Register so dataclasses.asdict() can deep-copy MappingProxyType fields.
-copy._deepcopy_dispatch[types.MappingProxyType] = _deepcopy_mapping_proxy  # type: ignore[index]  # noqa: SLF001
+_register_mapping_proxy_deepcopy()
 
 
 class DeliveryVector(StrEnum):
@@ -130,7 +134,7 @@ class ToolCall:
     error: str | None = None
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "arguments", types.MappingProxyType(self.arguments))
+        object.__setattr__(self, "arguments", types.MappingProxyType(dict(self.arguments)))
 
 
 @dataclass(frozen=True, slots=True)
@@ -153,8 +157,8 @@ class AttackResult:
     error: str | None = None
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "environment_diff", types.MappingProxyType(self.environment_diff))
-        object.__setattr__(self, "scorer_details", types.MappingProxyType(self.scorer_details))
+        object.__setattr__(self, "environment_diff", types.MappingProxyType(dict(self.environment_diff)))
+        object.__setattr__(self, "scorer_details", types.MappingProxyType(dict(self.scorer_details)))
 
 
 @dataclass(frozen=True, slots=True)
@@ -168,4 +172,4 @@ class Score:
     details: Mapping[str, Any] = field(default_factory=lambda: dict[str, Any]())  # noqa: PLW0108
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "details", types.MappingProxyType(self.details))
+        object.__setattr__(self, "details", types.MappingProxyType(dict(self.details)))
