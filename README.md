@@ -29,7 +29,7 @@
 | src/agent\_inject/harness/adapters/rest.py               |       42 |        0 |        4 |        0 |     100.00% |           |
 | src/agent\_inject/harness/base.py                        |       13 |        0 |        0 |        0 |     100.00% |           |
 | src/agent\_inject/jailbreaks/\_\_init\_\_.py             |        0 |        0 |        0 |        0 |     100.00% |           |
-| src/agent\_inject/models.py                              |      103 |        0 |        2 |        0 |     100.00% |           |
+| src/agent\_inject/models.py                              |      108 |        0 |        2 |        0 |     100.00% |           |
 | src/agent\_inject/paths.py                               |       12 |        0 |        0 |        0 |     100.00% |           |
 | src/agent\_inject/persistence/\_\_init\_\_.py            |        0 |        0 |        0 |        0 |     100.00% |           |
 | src/agent\_inject/reports/\_\_init\_\_.py                |        0 |        0 |        0 |        0 |     100.00% |           |
@@ -39,7 +39,7 @@
 | src/agent\_inject/strategies/\_\_init\_\_.py             |        2 |        0 |        0 |        0 |     100.00% |           |
 | src/agent\_inject/strategies/base.py                     |       49 |        0 |        2 |        0 |     100.00% |           |
 | src/agent\_inject/strategies/crescendo.py                |       49 |        0 |        8 |        0 |     100.00% |           |
-| **TOTAL**                                                | **1217** |    **0** |  **232** |    **0** | **100.00%** |           |
+| **TOTAL**                                                | **1222** |    **0** |  **232** |    **0** | **100.00%** |           |
 
 
 ## Setup coverage badge
