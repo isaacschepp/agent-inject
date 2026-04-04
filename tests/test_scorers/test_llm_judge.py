@@ -180,8 +180,9 @@ class TestLlmJudgeScorer:
         scorer = self._make_scorer()
         assert scorer._max_concurrent == 3
 
-    def test_clients_lazily_initialized(self) -> None:
-        """SDK clients should not exist until first use."""
+    def test_client_created_eagerly(self) -> None:
+        """SDK client should be created in __init__, not lazily."""
         scorer = self._make_scorer()
-        assert not hasattr(scorer, "_openai_client")
-        assert not hasattr(scorer, "_anthropic_client")
+        # _client is set in __init__ (may be None for unsupported providers in test,
+        # but the attribute itself must exist).
+        assert hasattr(scorer, "_client")

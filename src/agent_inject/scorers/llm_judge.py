@@ -80,6 +80,7 @@ class LlmJudgeScorer(BaseScorer):
         self._api_key = api_key
         self._semaphore = asyncio.Semaphore(judge_config.max_concurrent)
         self._max_concurrent = judge_config.max_concurrent
+        self._client: Any = self._create_client()
 
     @override
     async def score(self, result: AttackResult) -> Score:
@@ -159,25 +160,29 @@ class LlmJudgeScorer(BaseScorer):
         msg = f"Unsupported judge provider: {self._provider!r}"
         raise ValueError(msg)
 
-    def _get_openai_client(self) -> Any:  # pragma: no cover — requires openai SDK
-        """Return a shared OpenAI client, creating it on first call."""
-        if not hasattr(self, "_openai_client"):
-            from openai import AsyncOpenAI
+    def _create_client(self) -> Any:
+        """Eagerly create the SDK client for the configured provider.
 
-            self._openai_client = AsyncOpenAI(api_key=self._api_key)
-        return self._openai_client
+        Uses lazy module import (SDK loaded only for the provider in use)
+        with eager client creation (no check-then-assign race possible).
+        Returns ``None`` if the SDK is not installed — the error surfaces
+        at call time via ``_call_judge``'s ``except Exception`` wrapper.
+        """
+        try:
+            if self._provider == "openai":
+                from openai import AsyncOpenAI  # pragma: no cover — requires openai SDK
 
-    def _get_anthropic_client(self) -> Any:  # pragma: no cover — requires anthropic SDK
-        """Return a shared Anthropic client, creating it on first call."""
-        if not hasattr(self, "_anthropic_client"):
-            from anthropic import AsyncAnthropic
+                return AsyncOpenAI(api_key=self._api_key)  # pragma: no cover
+            if self._provider == "anthropic":
+                from anthropic import AsyncAnthropic  # pragma: no cover — requires anthropic SDK
 
-            self._anthropic_client = AsyncAnthropic(api_key=self._api_key)
-        return self._anthropic_client
+                return AsyncAnthropic(api_key=self._api_key)  # pragma: no cover
+        except ImportError:
+            _logger.debug("Provider SDK %r not installed; client deferred to call time", self._provider)
+        return None
 
     async def _call_openai(self, messages: list[dict[str, str]]) -> str:  # pragma: no cover — requires openai SDK
-        client = self._get_openai_client()
-        resp = await client.chat.completions.create(
+        resp = await self._client.chat.completions.create(
             model=self._model,
             messages=messages,
             temperature=self._config.temperature,
@@ -187,10 +192,9 @@ class LlmJudgeScorer(BaseScorer):
         return resp.choices[0].message.content or ""
 
     async def _call_anthropic(self, messages: list[dict[str, str]]) -> str:  # pragma: no cover — requires anthropic SDK
-        client = self._get_anthropic_client()
         system_msg = next((m["content"] for m in messages if m["role"] == "system"), "")
         user_msgs = [m for m in messages if m["role"] != "system"]
-        resp = await client.messages.create(
+        resp = await self._client.messages.create(
             model=self._model,
             system=system_msg,
             messages=user_msgs,
