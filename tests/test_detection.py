@@ -8,9 +8,52 @@ from __future__ import annotations
 from agent_inject.detection import (
     COMPLIANCE_INDICATORS,
     REFUSAL_PHRASES,
+    DetectionPhraseFile,
+    _load_phrases,
     detect_compliance,
     detect_refusal,
 )
+
+
+class TestYamlLoading:
+    """YAML data files are loadable and valid."""
+
+    def test_refusal_yaml_loads(self) -> None:
+        phrases = _load_phrases("refusal")
+        assert len(phrases) > 0
+
+    def test_compliance_yaml_loads(self) -> None:
+        phrases = _load_phrases("compliance")
+        assert len(phrases) > 0
+
+    def test_refusal_schema_valid(self) -> None:
+        from importlib.resources import files
+
+        import yaml
+
+        resource = files("agent_inject").joinpath("data", "detection", "refusal.yaml")
+        raw = yaml.safe_load(resource.read_text(encoding="utf-8"))
+        validated = DetectionPhraseFile.model_validate(raw)
+        assert validated.match_type == "word_boundary"
+        assert validated.version == "1.0"
+
+    def test_compliance_schema_valid(self) -> None:
+        from importlib.resources import files
+
+        import yaml
+
+        resource = files("agent_inject").joinpath("data", "detection", "compliance.yaml")
+        raw = yaml.safe_load(resource.read_text(encoding="utf-8"))
+        validated = DetectionPhraseFile.model_validate(raw)
+        assert validated.match_type == "substring"
+
+
+class TestDetectionPhraseFileValidation:
+    def test_empty_phrases_rejected(self) -> None:
+        import pytest
+
+        with pytest.raises(Exception, match="phrases must not be empty"):
+            DetectionPhraseFile(version="1.0", phrases=[])
 
 
 class TestRefusalPhrases:
