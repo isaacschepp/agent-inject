@@ -44,6 +44,10 @@ class DeliveryVector(StrEnum):
     FILE_METADATA = "file_metadata"
     INTER_AGENT_MESSAGE = "inter_agent_message"
     PLUGIN_REGISTRY = "plugin_registry"
+    MULTIMODAL_CONTENT = "multimodal_content"
+    MEMORY_STORE = "memory_store"
+    AGENT_CONFIGURATION = "agent_configuration"
+    TOOL_SCHEMA = "tool_schema"
 
 
 class TargetOutcome(StrEnum):
@@ -63,6 +67,7 @@ class TargetOutcome(StrEnum):
     TRUST_EXPLOITATION = "trust_exploitation"
     AGENT_MISALIGNMENT = "agent_misalignment"
     CASCADING_FAILURE = "cascading_failure"
+    CONTEXT_WINDOW_EXHAUSTION = "context_window_exhaustion"
 
 
 class PayloadTier(StrEnum):

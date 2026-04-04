@@ -44,6 +44,19 @@ Data: [mitre-atlas/atlas-data](https://github.com/mitre-atlas/atlas-data)
 | AML.T0084.002 | ...Activation Triggers | PROMPT_LEAKING | DIRECT | direct/ | SystemPromptLeakScorer |
 | AML.T0084.003 | ...Call Chains | PROMPT_LEAKING | DIRECT | direct/ | SystemPromptLeakScorer |
 
+### Reconnaissance + Lateral Movement (v5.1.0)
+
+| ID | Name | TargetOutcome | DeliveryVector | Attack Dir | Scorer |
+|----|------|--------------|----------------|------------|--------|
+| AML.T0087 | Gather Victim Identity Information | DATA_EXFILTRATION | DIRECT | direct/ | DataExfiltrationScorer |
+| AML.T0089 | AI Agent Process Discovery | PROMPT_LEAKING | DIRECT | direct/ | SystemPromptLeakScorer |
+| AML.T0090 | OS Credential Dumping | DATA_EXFILTRATION, PRIVILEGE_ESCALATION | TOOL_RETURN | function_call/ | DataExfiltrationScorer |
+| AML.T0091 | Use Alternate Authentication Material | PRIVILEGE_ESCALATION | TOOL_RETURN | function_call/ | -- |
+| AML.T0092 | Manipulate User LLM Chat History | MEMORY_POISONING | MEMORY_STORE | indirect/ | StateModificationScorer |
+| AML.T0093 | Prompt Infiltration via Public-Facing App | GOAL_HIJACKING | WEB_PAGE | indirect/ | CanaryMatchScorer |
+| AML.T0094 | Delay Execution of LLM Instructions | GOAL_HIJACKING | TOOL_RETURN | indirect/ | -- |
+| AML.T0095 | Search Open Websites/Domains | DATA_EXFILTRATION | WEB_PAGE | -- | -- |
+
 ### Collection + Exfiltration
 
 | ID | Name | TargetOutcome | DeliveryVector | Attack Dir | Scorer |
@@ -98,8 +111,8 @@ Data: [mitre-atlas/atlas-data](https://github.com/mitre-atlas/atlas-data)
 | AML.T0101 | Data Destruction via AI Agent Tool Invocation | DENIAL_OF_SERVICE | TOOL_RETURN | function_call/ | UnauthorizedToolCallScorer |
 | AML.T0112 | Machine Compromise | CODE_EXECUTION | TOOL_RETURN, CODE_COMMENT | function_call/ | -- |
 | AML.T0112.000 | ...Local AI Agent | CODE_EXECUTION | TOOL_RETURN | function_call/ | -- |
-| AML.T0112.001 | ...AI Artifacts | CODE_EXECUTION | FILE_METADATA | multimodal/ | -- |
-| AML.T0034.002 | Cost Harvesting: Agentic Resource Consumption | DENIAL_OF_SERVICE | DIRECT | direct/ | -- |
+| AML.T0112.001 | ...AI Artifacts | CODE_EXECUTION | FILE_METADATA, MULTIMODAL_CONTENT | multimodal/ | -- |
+| AML.T0034.002 | Cost Harvesting: Agentic Resource Consumption | DENIAL_OF_SERVICE, CONTEXT_WINDOW_EXHAUSTION | DIRECT | direct/ | -- |
 
 ### AI Attack Staging
 
