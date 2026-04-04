@@ -18,7 +18,7 @@ from agent_inject.evasion.transforms import TransformChain, apply_evasion_chains
 from agent_inject.models import AttackResult, DeliveryVector, PayloadInstance, Score
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Awaitable, Callable
 
     from agent_inject.attacks.base import BaseAttack
     from agent_inject.harness.base import BaseAdapter
@@ -86,7 +86,7 @@ async def run_scan(
     max_retries: int = 3,
     retry_backoff_seconds: float = 2.0,
     parallel_scoring: bool = True,
-    on_progress: Callable[[ScanProgress], Any] | None = None,
+    on_progress: Callable[[ScanProgress], Any | Awaitable[Any]] | None = None,
 ) -> ScanResult:
     """Run a complete scan: generate -> evade -> deliver -> score.
 
@@ -318,7 +318,7 @@ async def _deliver_and_score_all(
     parallel_scoring: bool,
     total: int,
     start: float,
-    on_progress: Callable[[ScanProgress], Any] | None,
+    on_progress: Callable[[ScanProgress], Any | Awaitable[Any]] | None,
 ) -> tuple[list[AttackResult], list[tuple[AttackResult, tuple[Score, ...]]], int]:
     """Deliver payloads and score results in an interleaved pipeline.
 
@@ -373,7 +373,7 @@ async def _deliver_and_score_all(
                 scores=result_scores,
                 index=instance.index,
                 total=total,
-                elapsed_seconds=round(time.monotonic() - start, 2),
+                elapsed_seconds=time.monotonic() - start,
                 successful_so_far=successful,
             )
             ret = on_progress(progress)
