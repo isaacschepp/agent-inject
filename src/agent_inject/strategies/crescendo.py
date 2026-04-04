@@ -182,7 +182,7 @@ class CrescendoStrategy(BaseMultiTurnStrategy):
         """Detect if the target refused the request."""
         from agent_inject.detection import detect_refusal
 
-        return detect_refusal(response)
+        return bool(detect_refusal(response))
 
     def _check_success(self, response: str, canary: str) -> bool:
         """Check if the canary string appeared in the response."""
