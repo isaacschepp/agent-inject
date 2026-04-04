@@ -136,6 +136,34 @@ class TestDeepImmutability:
         with pytest.raises(TypeError):
             modified.environment_diff["b"] = "mutated"  # type: ignore[index]
 
+    def test_sensitive_fields_excluded_from_repr(self, sample_payload_instance: PayloadInstance) -> None:
+        """Sensitive fields must not appear in repr to prevent data leakage in logs."""
+        result = AttackResult(
+            payload_instance=sample_payload_instance,
+            raw_output="LEAKED_SECRET_KEY_12345",
+            scorer_details={"secret": "value"},
+        )
+        r = repr(result)
+        assert "LEAKED_SECRET_KEY_12345" not in r
+        assert "secret" not in r
+        # Non-sensitive fields still appear
+        assert "attack_success" in r
+
+    def test_score_sensitive_fields_excluded_from_repr(self) -> None:
+        score = Score(
+            scorer_name="test",
+            passed=True,
+            value=1.0,
+            rationale="Contains SENSITIVE_DATA",
+            details={"leaked": True},
+        )
+        r = repr(score)
+        assert "SENSITIVE_DATA" not in r
+        assert "leaked" not in r
+        # Non-sensitive fields still appear
+        assert "scorer_name" in r
+        assert "passed" in r
+
     def test_original_dict_mutation_does_not_affect_instance(self, sample_payload_instance: PayloadInstance) -> None:
         """Defensive copy: mutating the original dict after construction has no effect."""
         original_dict: dict[str, int] = {"a": 1}

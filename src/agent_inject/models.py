@@ -150,10 +150,10 @@ class AttackResult:
     attack_success: bool = False
     utility_preserved: bool = True
     detection_evaded: bool = True
-    raw_output: str = ""
+    raw_output: str = field(default="", repr=False)
     tool_calls: tuple[ToolCall, ...] = ()
     environment_diff: Mapping[str, Any] = field(default_factory=lambda: dict[str, Any]())  # noqa: PLW0108
-    scorer_details: Mapping[str, Any] = field(default_factory=lambda: dict[str, Any]())  # noqa: PLW0108
+    scorer_details: Mapping[str, Any] = field(default_factory=lambda: dict[str, Any](), repr=False)  # noqa: PLW0108
     error: str | None = None
 
     def __post_init__(self) -> None:
@@ -168,8 +168,8 @@ class Score:
     scorer_name: str
     passed: bool
     value: float
-    rationale: str = ""
-    details: Mapping[str, Any] = field(default_factory=lambda: dict[str, Any]())  # noqa: PLW0108
+    rationale: str = field(default="", repr=False)
+    details: Mapping[str, Any] = field(default_factory=lambda: dict[str, Any](), repr=False)  # noqa: PLW0108
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "details", types.MappingProxyType(dict(self.details)))
