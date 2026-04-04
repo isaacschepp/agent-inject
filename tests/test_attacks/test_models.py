@@ -9,6 +9,7 @@ import pytest
 
 from agent_inject.models import (
     AttackResult,
+    DeliveryVector,
     EscapeConfig,
     Payload,
     PayloadInstance,
@@ -33,6 +34,11 @@ class TestPayloadInstance:
         assert sample_payload_instance.rogue_string
         assert sample_payload_instance.rogue_string in sample_payload_instance.rendered
 
+    def test_positional_construction_rejected(self, sample_payload: Payload) -> None:
+        """kw_only=True must prevent positional construction (#538)."""
+        with pytest.raises(TypeError):
+            PayloadInstance(sample_payload, "rendered", DeliveryVector.DIRECT)  # type: ignore[misc]
+
 
 class TestEscapeConfig:
     def test_default_render(self, sample_escape_config: EscapeConfig) -> None:
@@ -50,6 +56,11 @@ class TestAttackResult:
         assert result.attack_success is False
         assert result.utility_preserved is True
         assert result.tool_calls == ()
+
+    def test_positional_construction_rejected(self, sample_payload_instance: PayloadInstance) -> None:
+        """kw_only=True must prevent positional construction (#538)."""
+        with pytest.raises(TypeError):
+            AttackResult(sample_payload_instance)  # type: ignore[misc]
 
     def test_with_tool_calls(self, sample_attack_result: AttackResult) -> None:
         assert len(sample_attack_result.tool_calls) == 1
