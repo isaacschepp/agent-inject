@@ -35,6 +35,26 @@ class ScanResult:
     duration_seconds: float
 
 
+async def _safe_score(scorer: BaseScorer, result: AttackResult) -> Score:
+    """Invoke *scorer* with error isolation.
+
+    Returns a synthetic error ``Score`` if the scorer raises, so that
+    sibling scorers are never affected and the result set is always
+    complete and uniformly typed.
+    """
+    try:
+        return await scorer.score(result)
+    except Exception as exc:  # noqa: BLE001 — scorer-agnostic; can't predict exception types
+        _logger.warning("Scorer %s failed for %s: %s", scorer.name, result.payload_instance.payload.id, exc)
+        return Score(
+            scorer_name=scorer.name,
+            passed=False,
+            value=0.0,
+            rationale=f"Scorer error: {type(exc).__name__}: {exc}",
+            details={"error": True, "exception_type": type(exc).__qualname__},
+        )
+
+
 async def run_scan(
     adapter: BaseAdapter,
     attacks: list[BaseAttack],
@@ -46,6 +66,7 @@ async def run_scan(
     max_concurrent: int,
     max_retries: int = 3,
     retry_backoff_seconds: float = 2.0,
+    parallel_scoring: bool = True,
     on_result: Callable[[AttackResult], Any] | None = None,
 ) -> ScanResult:
     """Run a complete scan: generate -> evade -> deliver -> score.
@@ -60,6 +81,7 @@ async def run_scan(
         max_concurrent: Maximum concurrent payload deliveries.
         max_retries: Maximum retry attempts per payload on transient failure.
         retry_backoff_seconds: Base delay (seconds) between retries (exponential backoff).
+        parallel_scoring: Run scorers in parallel per result (True) or sequentially (False).
         on_result: Optional callback invoked after each result is scored.
 
     Returns:
@@ -97,10 +119,12 @@ async def run_scan(
     scored: list[tuple[AttackResult, tuple[Score, ...]]] = []
     successful = 0
     for result in results:
-        result_scores: list[Score] = []
-        for scorer in scorers:
-            score = await scorer.score(result)
-            result_scores.append(score)
+        if parallel_scoring and len(scorers) > 1:
+            result_scores = list(await asyncio.gather(
+                *(_safe_score(scorer, result) for scorer in scorers),
+            ))
+        else:
+            result_scores = [await _safe_score(scorer, result) for scorer in scorers]
         if any(s.passed for s in result_scores):
             result = replace(result, attack_success=True)  # noqa: PLW2901 — intentional: frozen dataclass requires replace()
             successful += 1

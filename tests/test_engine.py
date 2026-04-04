@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import Any, ClassVar, override
 
 from agent_inject.attacks.base import FixedJailbreakAttack
-from agent_inject.engine import ScanResult, run_scan
+from agent_inject.engine import ScanResult, _safe_score, run_scan
 from agent_inject.evasion.transforms import Base64Encode, compose
 from agent_inject.harness.base import BaseAdapter
 from agent_inject.models import AttackResult, DeliveryVector, PayloadInstance, Score
@@ -240,3 +240,148 @@ class TestRunScan:
         )
         assert result.total_payloads == 0
         assert result.results == ()
+
+
+class ExplodingScorer(BaseScorer):
+    """Scorer that always raises."""
+
+    name = "exploding"
+
+    @override
+    async def score(self, result: AttackResult) -> Score:
+        msg = "scorer kaboom"
+        raise RuntimeError(msg)
+
+
+class TestParallelScoring:
+    """Tests for parallel scorer execution (#509)."""
+
+    async def test_parallel_produces_same_results_as_sequential(self) -> None:
+        adapter = StubAdapter()
+        scorers = [AlwaysPassScorer(), NeverPassScorer()]
+
+        parallel = await run_scan(
+            adapter,
+            attacks=[SimpleAttack()],
+            scorers=scorers,
+            goal="test",
+            max_concurrent=5,
+            parallel_scoring=True,
+        )
+        sequential = await run_scan(
+            adapter,
+            attacks=[SimpleAttack()],
+            scorers=scorers,
+            goal="test",
+            max_concurrent=5,
+            parallel_scoring=False,
+        )
+
+        assert parallel.successful_attacks == sequential.successful_attacks
+        assert len(parallel.scores) == len(sequential.scores)
+        for (p_result, p_scores), (s_result, s_scores) in zip(
+            parallel.scores, sequential.scores, strict=True
+        ):
+            assert p_result.attack_success == s_result.attack_success
+            assert len(p_scores) == len(s_scores)
+            for p, s in zip(p_scores, s_scores, strict=True):
+                assert p.scorer_name == s.scorer_name
+                assert p.passed == s.passed
+
+    async def test_parallel_scoring_preserves_scorer_order(self) -> None:
+        adapter = StubAdapter()
+        scorers = [AlwaysPassScorer(), NeverPassScorer()]
+        result = await run_scan(
+            adapter,
+            attacks=[SimpleAttack()],
+            scorers=scorers,
+            goal="test",
+            max_concurrent=5,
+            parallel_scoring=True,
+        )
+        scores = result.scores[0][1]
+        assert scores[0].scorer_name == "always_pass"
+        assert scores[1].scorer_name == "never_pass"
+
+    async def test_sequential_fallback(self) -> None:
+        adapter = StubAdapter()
+        result = await run_scan(
+            adapter,
+            attacks=[SimpleAttack()],
+            scorers=[AlwaysPassScorer(), NeverPassScorer()],
+            goal="test",
+            max_concurrent=5,
+            parallel_scoring=False,
+        )
+        assert result.successful_attacks == 1
+        assert len(result.scores[0][1]) == 2
+
+    async def test_single_scorer_uses_sequential_path(self) -> None:
+        """With only 1 scorer, gather is not used (len(scorers) > 1 guard)."""
+        adapter = StubAdapter()
+        result = await run_scan(
+            adapter,
+            attacks=[SimpleAttack()],
+            scorers=[AlwaysPassScorer()],
+            goal="test",
+            max_concurrent=5,
+            parallel_scoring=True,
+        )
+        assert result.successful_attacks == 1
+        assert len(result.scores[0][1]) == 1
+
+
+class TestScorerErrorIsolation:
+    """Tests for _safe_score error isolation (#514)."""
+
+    async def test_safe_score_returns_error_score_on_failure(
+        self, sample_attack_result: AttackResult
+    ) -> None:
+        exploding = ExplodingScorer()
+        score = await _safe_score(exploding, sample_attack_result)
+        assert score.scorer_name == "exploding"
+        assert score.passed is False
+        assert score.value == 0.0
+        assert "RuntimeError" in score.rationale
+        assert score.details["error"] is True
+        assert score.details["exception_type"] == "RuntimeError"
+
+    async def test_exploding_scorer_does_not_kill_siblings(self) -> None:
+        adapter = StubAdapter()
+        result = await run_scan(
+            adapter,
+            attacks=[SimpleAttack()],
+            scorers=[AlwaysPassScorer(), ExplodingScorer(), NeverPassScorer()],
+            goal="test",
+            max_concurrent=5,
+            parallel_scoring=True,
+        )
+        scores = result.scores[0][1]
+        assert len(scores) == 3
+        # AlwaysPass still produced its score
+        assert scores[0].scorer_name == "always_pass"
+        assert scores[0].passed is True
+        # ExplodingScorer produced an error score
+        assert scores[1].scorer_name == "exploding"
+        assert scores[1].passed is False
+        assert scores[1].details.get("error") is True
+        # NeverPass still produced its score
+        assert scores[2].scorer_name == "never_pass"
+        assert scores[2].passed is False
+        # At least one scorer passed -> attack_success
+        assert result.successful_attacks == 1
+
+    async def test_exploding_scorer_isolated_in_sequential_mode(self) -> None:
+        adapter = StubAdapter()
+        result = await run_scan(
+            adapter,
+            attacks=[SimpleAttack()],
+            scorers=[AlwaysPassScorer(), ExplodingScorer()],
+            goal="test",
+            max_concurrent=5,
+            parallel_scoring=False,
+        )
+        scores = result.scores[0][1]
+        assert len(scores) == 2
+        assert scores[0].passed is True
+        assert scores[1].details.get("error") is True

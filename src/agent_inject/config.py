@@ -97,6 +97,9 @@ class EngineConfig(BaseModel, frozen=True):
     retry_backoff_seconds: float = Field(
         default=2.0, ge=0.0, description="Base delay in seconds between retries (exponential backoff)."
     )
+    parallel_scoring: bool = Field(
+        default=True, description="Run scorers in parallel per result via asyncio.gather."
+    )
 
 
 class OutputConfig(BaseModel, frozen=True):

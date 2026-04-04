@@ -144,6 +144,7 @@ async def _async_scan(
             max_concurrent=config.engine.max_concurrent,
             max_retries=config.engine.max_retries,
             retry_backoff_seconds=config.engine.retry_backoff_seconds,
+            parallel_scoring=config.engine.parallel_scoring,
         )
 
     output.write_text(json.dumps(dataclasses.asdict(result), indent=2, default=str))  # noqa: ASYNC240
