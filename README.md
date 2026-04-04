@@ -20,7 +20,7 @@
 | src/agent\_inject/cli.py                                 |      101 |        0 |       20 |        0 |     100.00% |           |
 | src/agent\_inject/config.py                              |      106 |        0 |       22 |        0 |     100.00% |           |
 | src/agent\_inject/detection.py                           |       48 |        0 |        6 |        0 |     100.00% |           |
-| src/agent\_inject/engine.py                              |      101 |        0 |       30 |        0 |     100.00% |           |
+| src/agent\_inject/engine.py                              |      109 |        0 |       30 |        0 |     100.00% |           |
 | src/agent\_inject/evasion/\_\_init\_\_.py                |        2 |        0 |        0 |        0 |     100.00% |           |
 | src/agent\_inject/evasion/transforms.py                  |      110 |        0 |       12 |        0 |     100.00% |           |
 | src/agent\_inject/exfiltration/\_\_init\_\_.py           |        0 |        0 |        0 |        0 |     100.00% |           |
@@ -39,7 +39,7 @@
 | src/agent\_inject/strategies/\_\_init\_\_.py             |        2 |        0 |        0 |        0 |     100.00% |           |
 | src/agent\_inject/strategies/base.py                     |       48 |        0 |        2 |        0 |     100.00% |           |
 | src/agent\_inject/strategies/crescendo.py                |       49 |        0 |        8 |        0 |     100.00% |           |
-| **TOTAL**                                                | **1147** |    **0** |  **218** |    **0** | **100.00%** |           |
+| **TOTAL**                                                | **1155** |    **0** |  **218** |    **0** | **100.00%** |           |
 
 
 ## Setup coverage badge
