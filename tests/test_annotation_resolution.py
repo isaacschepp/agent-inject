@@ -40,10 +40,7 @@ def test_all_class_annotations_resolve() -> None:
     ):
         if modname in _SKIP_MODULES:
             continue
-        try:
-            module = importlib.import_module(modname)
-        except Exception:
-            continue
+        module = importlib.import_module(modname)
         for name in dir(module):
             obj = getattr(module, name)
             if not isinstance(obj, type):
