@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import copy
 import types
-from collections.abc import Mapping  # noqa: TC003 — needed at runtime for get_type_hints()
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
