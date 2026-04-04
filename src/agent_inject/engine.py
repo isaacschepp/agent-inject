@@ -112,77 +112,132 @@ async def run_scan(
         instances = apply_evasion_chains(instances, evasion_chains)
         _logger.info("After evasion fan-out: %d payloads", len(instances))
 
-    # 4. Deliver concurrently
-    results = await _send_all(adapter, instances, max_concurrent, max_retries, retry_backoff_seconds)
+    # 3b. Assign stable indices for deterministic ordering after interleaving
+    instances = [replace(inst, index=i) for i, inst in enumerate(instances)]
 
-    # 5. Score
-    scored: list[tuple[AttackResult, tuple[Score, ...]]] = []
-    successful = 0
-    for result in results:
-        if parallel_scoring and len(scorers) > 1:
-            result_scores = list(
-                await asyncio.gather(
-                    *(_safe_score(scorer, result) for scorer in scorers),
-                )
-            )
-        else:
-            result_scores = [await _safe_score(scorer, result) for scorer in scorers]
-        if any(s.passed for s in result_scores):
-            result = replace(result, attack_success=True)  # noqa: PLW2901 — intentional: frozen dataclass requires replace()
-            successful += 1
-        scored.append((result, tuple(result_scores)))
-        if on_result:
-            on_result(result)
+    # 4+5. Deliver and score interleaved — scoring starts as each delivery completes
+    raw_results, scored, successful = await _deliver_and_score_all(
+        adapter,
+        instances,
+        scorers,
+        max_concurrent=max_concurrent,
+        max_retries=max_retries,
+        retry_backoff_seconds=retry_backoff_seconds,
+        parallel_scoring=parallel_scoring,
+        on_result=on_result,
+    )
 
     duration = time.monotonic() - start
     _logger.info(
         "Scan complete: %d/%d successful in %.1fs",
         successful,
-        len(results),
+        len(raw_results),
         duration,
     )
 
     return ScanResult(
-        results=tuple(results),
+        results=tuple(raw_results),
         scores=tuple(scored),
-        total_payloads=len(results),
+        total_payloads=len(raw_results),
         successful_attacks=successful,
         duration_seconds=round(duration, 2),
     )
 
 
-async def _send_all(
+async def _send_one_with_retry(
+    adapter: BaseAdapter,
+    instance: PayloadInstance,
+    max_retries: int,
+    retry_backoff_seconds: float,
+) -> AttackResult:
+    """Send a single payload with exponential-backoff retry."""
+    last_error: str = ""
+    for attempt in range(max_retries + 1):
+        try:
+            return await adapter.send_payload(instance)
+        except Exception as e:  # noqa: BLE001 — adapter-agnostic; can't predict exception types
+            last_error = str(e)
+            if attempt < max_retries:
+                delay = retry_backoff_seconds * (2**attempt)
+                _logger.info(
+                    "Retry %d/%d for %s after %.1fs: %s",
+                    attempt + 1,
+                    max_retries,
+                    instance.payload.id,
+                    delay,
+                    e,
+                )
+                await asyncio.sleep(delay)
+    _logger.warning("Send failed for %s after %d retries: %s", instance.payload.id, max_retries, last_error)
+    return AttackResult(payload_instance=instance, error=last_error)
+
+
+async def _deliver_and_score_all(
     adapter: BaseAdapter,
     instances: list[PayloadInstance],
+    scorers: list[BaseScorer],
+    *,
     max_concurrent: int,
     max_retries: int,
     retry_backoff_seconds: float,
-) -> list[AttackResult]:
-    """Send all payloads concurrently with bounded parallelism and retry."""
-    sem = asyncio.Semaphore(max_concurrent)
+    parallel_scoring: bool,
+    on_result: Callable[[AttackResult], Any] | None,
+) -> tuple[list[AttackResult], list[tuple[AttackResult, tuple[Score, ...]]], int]:
+    """Deliver payloads and score results in an interleaved pipeline.
 
-    async def _send_one(instance: PayloadInstance) -> AttackResult:
-        async with sem:
-            last_error: str = ""
-            for attempt in range(max_retries + 1):
-                try:
-                    return await adapter.send_payload(instance)
-                except Exception as e:  # noqa: BLE001 — adapter-agnostic; can't predict exception types
-                    last_error = str(e)
-                    if attempt < max_retries:
-                        delay = retry_backoff_seconds * (2**attempt)
-                        _logger.info(
-                            "Retry %d/%d for %s after %.1fs: %s",
-                            attempt + 1,
-                            max_retries,
-                            instance.payload.id,
-                            delay,
-                            e,
-                        )
-                        await asyncio.sleep(delay)
-            _logger.warning("Send failed for %s after %d retries: %s", instance.payload.id, max_retries, last_error)
-            return AttackResult(payload_instance=instance, error=last_error)
+    Each payload is delivered, then immediately scored before the next
+    payload waits for its delivery slot.  The delivery semaphore is
+    released *before* scoring begins so that new deliveries can proceed
+    while scoring (potentially I/O-bound LLM judge calls) runs.
+
+    Returns ``(raw_results, scored_pairs, successful_count)`` sorted by
+    payload index for deterministic ordering.
+    """
+    delivery_sem = asyncio.Semaphore(max_concurrent)
+    raw_results: list[AttackResult] = []
+    scored: list[tuple[AttackResult, tuple[Score, ...]]] = []
+    successful = 0
+
+    async def _process_one(instance: PayloadInstance) -> None:
+        nonlocal successful
+        try:
+            # --- Delivery phase (bounded by semaphore) ---
+            async with delivery_sem:
+                result = await _send_one_with_retry(adapter, instance, max_retries, retry_backoff_seconds)
+            # Semaphore released — delivery slot freed for next payload.
+
+            # --- Scoring phase (outside semaphore — doesn't block delivery) ---
+            if parallel_scoring and len(scorers) > 1:
+                result_scores = list(
+                    await asyncio.gather(
+                        *(_safe_score(scorer, result) for scorer in scorers),
+                    )
+                )
+            else:
+                result_scores = [await _safe_score(scorer, result) for scorer in scorers]
+
+            if any(s.passed for s in result_scores):
+                result = replace(result, attack_success=True)
+                successful += 1
+
+            # Atomic appends (no await between reads/writes of shared state).
+            raw_results.append(result)
+            scored.append((result, tuple(result_scores)))
+        except Exception as exc:  # noqa: BLE001 — prevent TaskGroup cancellation cascade
+            _logger.warning("Pipeline failed for %s: %s", instance.payload.id, exc)
+            result = AttackResult(payload_instance=instance, error=str(exc))
+            raw_results.append(result)
+            scored.append((result, ()))
+
+        if on_result:
+            on_result(result)
 
     async with asyncio.TaskGroup() as tg:
-        tasks = [tg.create_task(_send_one(inst)) for inst in instances]
-    return [t.result() for t in tasks]
+        for inst in instances:
+            tg.create_task(_process_one(inst))
+
+    # Sort by payload index for deterministic ordering regardless of completion order.
+    raw_results.sort(key=lambda r: r.payload_instance.index)
+    scored.sort(key=lambda pair: pair[0].payload_instance.index)
+
+    return raw_results, scored, successful

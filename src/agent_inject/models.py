@@ -96,6 +96,7 @@ class PayloadInstance:
     payload: Payload
     rendered: str
     delivery_vector: DeliveryVector
+    index: int = 0
     evasion_chain: tuple[str, ...] = ()
     goal: str = ""
     rogue_string: str | None = None

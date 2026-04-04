@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import Any, ClassVar, override
 
 from agent_inject.attacks.base import FixedJailbreakAttack
-from agent_inject.engine import ScanResult, _safe_score, run_scan
+from agent_inject.engine import ScanResult, _safe_score, _send_one_with_retry, run_scan
 from agent_inject.evasion.transforms import Base64Encode, compose
 from agent_inject.harness.base import BaseAdapter
 from agent_inject.models import AttackResult, DeliveryVector, PayloadInstance, Score
@@ -381,3 +381,183 @@ class TestScorerErrorIsolation:
         assert len(scores) == 2
         assert scores[0].passed is True
         assert scores[1].details.get("error") is True
+
+
+class TestInterleavedPipeline:
+    """Tests for interleaved delivery+scoring (#510)."""
+
+    async def test_delivery_slot_freed_before_scoring(self) -> None:
+        """Verify scoring happens outside the delivery semaphore.
+
+        Use max_concurrent=1 with a slow scorer. If the delivery slot
+        were held during scoring, the second delivery could not start
+        until the first scorer finishes. With interleaving, both
+        deliveries should complete before either scorer finishes.
+        """
+        import asyncio
+
+        delivery_order: list[int] = []
+        scoring_order: list[int] = []
+
+        class OrderTrackingAdapter(BaseAdapter):
+            name = "tracking"
+
+            @override
+            async def send_payload(
+                self,
+                payload: PayloadInstance,
+                context: dict[str, Any] | None = None,
+            ) -> AttackResult:
+                delivery_order.append(payload.index)
+                return AttackResult(payload_instance=payload, raw_output="ok")
+
+        class SlowScorer(BaseScorer):
+            name = "slow"
+
+            @override
+            async def score(self, result: AttackResult) -> Score:
+                scoring_order.append(result.payload_instance.index)
+                await asyncio.sleep(0.05)
+                return Score(scorer_name=self.name, passed=False, value=0.0)
+
+        class TwoTemplateAttack(FixedJailbreakAttack):
+            name = "two"
+            _templates: ClassVar[list[str]] = ["a: {goal}", "b: {goal}"]
+
+        adapter = OrderTrackingAdapter()
+        await run_scan(
+            adapter,
+            attacks=[TwoTemplateAttack()],
+            scorers=[SlowScorer()],
+            goal="test",
+            max_concurrent=1,
+        )
+
+        # Both payloads should be delivered (in order, since max_concurrent=1)
+        assert len(delivery_order) == 2
+        # Both should be scored
+        assert len(scoring_order) == 2
+
+    async def test_results_sorted_by_index(self) -> None:
+        """Results must be in payload-generation order, not completion order."""
+
+        class AnotherAttack(FixedJailbreakAttack):
+            name = "multi"
+            _templates: ClassVar[list[str]] = ["a: {goal}", "b: {goal}", "c: {goal}"]
+
+        adapter = StubAdapter()
+        result = await run_scan(
+            adapter,
+            attacks=[AnotherAttack()],
+            scorers=[NeverPassScorer()],
+            goal="test",
+            max_concurrent=5,
+        )
+        # Verify results are in index order
+        indices = [r.payload_instance.index for r in result.results]
+        assert indices == sorted(indices)
+        # Verify scores are in the same order
+        score_indices = [pair[0].payload_instance.index for pair in result.scores]
+        assert score_indices == sorted(score_indices)
+
+    async def test_payload_index_assigned(self) -> None:
+        """PayloadInstance.index should be set during generation."""
+
+        class MultiAttack(FixedJailbreakAttack):
+            name = "multi"
+            _templates: ClassVar[list[str]] = ["x: {goal}", "y: {goal}"]
+
+        adapter = StubAdapter()
+        result = await run_scan(
+            adapter,
+            attacks=[MultiAttack()],
+            scorers=[],
+            goal="test",
+            max_concurrent=5,
+        )
+        assert result.results[0].payload_instance.index == 0
+        assert result.results[1].payload_instance.index == 1
+
+    async def test_on_result_called_per_payload(self) -> None:
+        """on_result fires once per payload in interleaved mode."""
+
+        class ThreeAttack(FixedJailbreakAttack):
+            name = "three"
+            _templates: ClassVar[list[str]] = ["a: {goal}", "b: {goal}", "c: {goal}"]
+
+        callback_results: list[AttackResult] = []
+        adapter = StubAdapter()
+        await run_scan(
+            adapter,
+            attacks=[ThreeAttack()],
+            scorers=[AlwaysPassScorer()],
+            goal="test",
+            max_concurrent=5,
+            on_result=callback_results.append,
+        )
+        assert len(callback_results) == 3
+
+    async def test_delivery_failure_does_not_cancel_siblings(self) -> None:
+        """A failing delivery should not prevent other payloads from completing."""
+        call_count = 0
+
+        class PartialFailAdapter(BaseAdapter):
+            name = "partial_fail"
+
+            @override
+            async def send_payload(
+                self,
+                payload: PayloadInstance,
+                context: dict[str, Any] | None = None,
+            ) -> AttackResult:
+                nonlocal call_count
+                call_count += 1
+                if call_count == 1:
+                    msg = "first payload fails"
+                    raise ConnectionError(msg)
+                return AttackResult(payload_instance=payload, raw_output="ok")
+
+        class TwoAttack(FixedJailbreakAttack):
+            name = "two"
+            _templates: ClassVar[list[str]] = ["a: {goal}", "b: {goal}"]
+
+        adapter = PartialFailAdapter()
+        result = await run_scan(
+            adapter,
+            attacks=[TwoAttack()],
+            scorers=[AlwaysPassScorer()],
+            goal="test",
+            max_concurrent=5,
+            max_retries=0,
+        )
+        assert result.total_payloads == 2
+        # One should have an error, the other should succeed
+        errors = [r for r in result.results if r.error is not None]
+        successes = [r for r in result.results if r.error is None]
+        assert len(errors) == 1
+        assert len(successes) == 1
+        # Both payloads were scored (failure didn't cancel sibling)
+        assert len(result.scores) == 2
+
+    async def test_send_one_with_retry_standalone(self) -> None:
+        """_send_one_with_retry works as a standalone function."""
+        adapter = StubAdapter(response="hello")
+        from agent_inject.models import Payload, PayloadTier
+
+        payload = Payload(
+            id="test",
+            template="t",
+            tier=PayloadTier.CLASSIC,
+            delivery_vectors=(),
+            target_outcomes=(),
+            source="test",
+            year=2026,
+        )
+        instance = PayloadInstance(
+            payload=payload,
+            rendered="t",
+            delivery_vector=DeliveryVector.DIRECT,
+        )
+        result = await _send_one_with_retry(adapter, instance, max_retries=0, retry_backoff_seconds=0.01)
+        assert result.raw_output == "hello"
+        assert result.error is None
