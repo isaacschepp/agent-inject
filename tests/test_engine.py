@@ -359,6 +359,19 @@ class TestScorerErrorIsolation:
         assert score.details["error"] is True
         assert score.details["exception_type"] == "RuntimeError"
 
+    async def test_safe_score_populates_duration(self, sample_attack_result: AttackResult) -> None:
+        """_safe_score must set duration_seconds on every returned Score."""
+        scorer = AlwaysPassScorer()
+        score = await _safe_score(scorer, sample_attack_result)
+        assert score.duration_seconds is not None
+        assert score.duration_seconds >= 0
+
+    async def test_safe_score_populates_duration_on_error(self, sample_attack_result: AttackResult) -> None:
+        exploding = ExplodingScorer()
+        score = await _safe_score(exploding, sample_attack_result)
+        assert score.duration_seconds is not None
+        assert score.duration_seconds >= 0
+
     async def test_exploding_scorer_does_not_kill_siblings(self) -> None:
         adapter = StubAdapter()
         result = await run_scan(

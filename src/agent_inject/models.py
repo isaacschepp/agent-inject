@@ -9,6 +9,7 @@ import copy
 import types
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
@@ -160,6 +161,7 @@ class AttackResult:
     environment_diff: Mapping[str, Any] = field(default_factory=lambda: dict[str, Any]())  # noqa: PLW0108
     scorer_details: Mapping[str, Any] = field(default_factory=lambda: dict[str, Any](), repr=False)  # noqa: PLW0108
     error: str | None = None
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "environment_diff", types.MappingProxyType(dict(self.environment_diff)))
@@ -175,6 +177,7 @@ class Score:
     value: float
     rationale: str = field(default="", repr=False)
     details: Mapping[str, Any] = field(default_factory=lambda: dict[str, Any](), repr=False)  # noqa: PLW0108
+    duration_seconds: float | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "details", types.MappingProxyType(dict(self.details)))

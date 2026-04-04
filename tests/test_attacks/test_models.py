@@ -66,6 +66,15 @@ class TestAttackResult:
         assert len(sample_attack_result.tool_calls) == 1
         assert sample_attack_result.tool_calls[0].tool_name == "send_email"
 
+    def test_timestamp_auto_set(self, sample_payload_instance: PayloadInstance) -> None:
+        """timestamp should be set automatically to current UTC time."""
+        from datetime import UTC, datetime
+
+        before = datetime.now(UTC)
+        result = AttackResult(payload_instance=sample_payload_instance)
+        after = datetime.now(UTC)
+        assert before <= result.timestamp <= after
+
 
 class TestToolCall:
     def test_basic(self) -> None:
@@ -79,6 +88,14 @@ class TestScore:
         score = Score(scorer_name="test", passed=True, value=1.0)
         with pytest.raises(AttributeError):
             score.passed = False  # type: ignore[misc]
+
+    def test_duration_seconds_defaults_to_none(self) -> None:
+        score = Score(scorer_name="test", passed=True, value=1.0)
+        assert score.duration_seconds is None
+
+    def test_duration_seconds_set_explicitly(self) -> None:
+        score = Score(scorer_name="test", passed=True, value=1.0, duration_seconds=0.42)
+        assert score.duration_seconds == 0.42
 
 
 class TestDeepcopyRegistration:
