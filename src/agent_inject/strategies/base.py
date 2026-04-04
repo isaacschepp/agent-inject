@@ -9,9 +9,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from agent_inject.models import AttackResult, Score
+
 if TYPE_CHECKING:
     from agent_inject.harness.base import BaseAdapter
-    from agent_inject.models import AttackResult, Score
 
 
 @dataclass(frozen=True, slots=True)

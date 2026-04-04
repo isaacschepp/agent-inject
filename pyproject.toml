@@ -165,6 +165,12 @@ ignore = [
 ]
 "src/agent_inject/evasion/**" = ["RUF001"]
 
+[tool.ruff.lint.flake8-type-checking]
+# Dataclass annotations may be evaluated at runtime by typing.get_type_hints(),
+# documentation tools, and serializers.  Prevent TC003 from suggesting moves
+# to TYPE_CHECKING for classes decorated with @dataclass.
+runtime-evaluated-decorators = ["dataclasses.dataclass"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["agent_inject"]
 
